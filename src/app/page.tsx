@@ -1,114 +1,20 @@
-"use client";
+// Server Component: carga el historial del usuario en el servidor y lo pasa
+// como mensajes iniciales al chat (client component). Así el historial se
+// pinta de entrada sin un fetch extra desde el navegador.
+//
+// Regla de código: identificadores en inglés, comentarios en español.
 
-import { useEffect, useRef, useState } from "react";
+import { auth } from "@/auth";
+import { loadConversation } from "@/lib/conversations";
+import ChatClient from "./chat-client";
 
-type Message = { role: "user" | "assistant"; content: string };
+export default async function ChatPage() {
+  const session = await auth();
+  const userId = session?.user?.id;
 
-const LESSONS = ["L1", "L2", "L3", "L4", "L5", "L6", "L7"];
+  // Con sesión, traemos el historial guardado; sin sesión arrancamos vacío
+  // (el middleware/auth se encarga del redirect a /signin).
+  const initialMessages = userId ? await loadConversation(userId) : [];
 
-export default function ChatPage() {
-  const [lesson, setLesson] = useState("L1");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, busy]);
-
-  async function send() {
-    const text = input.trim();
-    if (!text || busy) return;
-    setError(null);
-
-    const nextMessages: Message[] = [...messages, { role: "user", content: text }];
-    setMessages(nextMessages);
-    setInput("");
-    setBusy(true);
-    // Hueco del asistente que se va rellenando con el stream.
-    setMessages((m) => [...m, { role: "assistant", content: "" }]);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages, lesson }),
-      });
-      if (!res.ok || !res.body) throw new Error("respuesta no válida");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let acc = "";
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        acc += decoder.decode(value, { stream: true });
-        setMessages((m) => {
-          const copy = [...m];
-          copy[copy.length - 1] = { role: "assistant", content: acc };
-          return copy;
-        });
-      }
-    } catch {
-      setError("Algo falló al hablar con el tutor. Reintenta en un momento.");
-      setMessages((m) => m.slice(0, -1)); // quita el hueco del asistente
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <main className="chat">
-      <header className="chat__header">
-        <h1>Tu tutor</h1>
-        <label className="chat__lesson">
-          ¿En qué lección vas?
-          <select value={lesson} onChange={(e) => setLesson(e.target.value)}>
-            {LESSONS.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
-      </header>
-
-      <div className="chat__messages" ref={scrollRef}>
-        {messages.length === 0 && (
-          <p className="chat__empty">
-            Cuéntame en qué andas trabajando o dónde te atascaste. No te voy a dar
-            la respuesta — te voy a ayudar a encontrarla tú.
-          </p>
-        )}
-        {messages.map((m, i) => (
-          <div key={i} className={`bubble bubble--${m.role}`}>
-            {m.content || (busy && i === messages.length - 1 ? "…" : "")}
-          </div>
-        ))}
-      </div>
-
-      {error && <p className="chat__error">{error}</p>}
-
-      <form
-        className="chat__form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
-      >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Escribe aquí…"
-          disabled={busy}
-          autoFocus
-        />
-        <button type="submit" disabled={busy || !input.trim()}>
-          Enviar
-        </button>
-      </form>
-    </main>
-  );
+  return <ChatClient initialMessages={initialMessages} />;
 }
