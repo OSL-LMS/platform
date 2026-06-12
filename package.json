@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "App web del tutor IA socrático (v0). Chat sobre Claude Sonnet 4.6 con el system prompt certificado.",
+  "packageManager": "pnpm@11.4.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
