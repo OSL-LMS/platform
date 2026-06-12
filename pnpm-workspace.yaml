@@ -1,0 +1,4 @@
+# sharp es dependencia transitiva de Next (optimización de imágenes); no la usamos,
+# pero pnpm 11 bloquea su script de build salvo que se apruebe aquí.
+allowBuilds:
+  sharp: true
