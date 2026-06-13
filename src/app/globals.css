@@ -129,6 +129,147 @@ body {
   text-align: center;
 }
 
+/* ====== Páginas públicas: precios y legales ====== */
+.pricing {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.pricing h1 {
+  color: var(--color-accent);
+  font-weight: normal;
+  font-size: 34px;
+  margin: 0 0 12px;
+  text-align: center;
+}
+
+.pricing__lead {
+  text-align: center;
+  font-size: 18px;
+  max-width: 620px;
+  margin: 0 auto 36px;
+}
+
+.pricing__cards {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pricing__card {
+  flex: 1 1 280px;
+  max-width: 360px;
+  background: #fff;
+  border: 1px solid #e7ddc9;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.pricing__card--highlight {
+  border-color: var(--color-accent);
+  border-width: 2px;
+}
+
+.pricing__card h2 {
+  color: var(--color-accent);
+  font-weight: normal;
+  margin: 0 0 4px;
+}
+
+.pricing__price {
+  font-size: 34px;
+  margin: 0;
+}
+
+.pricing__price span {
+  font-size: 16px;
+  color: #8a8378;
+}
+
+.pricing__trial {
+  color: #8a8378;
+  font-size: 14px;
+  margin: 4px 0 12px;
+}
+
+.pricing__card ul {
+  padding-left: 20px;
+  margin: 12px 0 20px;
+}
+
+.pricing__card li {
+  margin-bottom: 6px;
+}
+
+.pricing__cta {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background-color: var(--color-accent);
+  color: var(--color-bg);
+  font-weight: bold;
+}
+
+.pricing__cta--ghost {
+  background: none;
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  font-weight: normal;
+}
+
+.legal {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.legal h1 {
+  color: var(--color-accent);
+  font-weight: normal;
+  margin: 0 0 4px;
+}
+
+.legal__updated {
+  color: #8a8378;
+  font-size: 14px;
+  margin: 0 0 28px;
+}
+
+.legal h2 {
+  font-size: 19px;
+  font-weight: normal;
+  color: var(--color-accent);
+  margin: 28px 0 8px;
+}
+
+.legal a {
+  color: var(--color-user);
+}
+
+.legal-footer {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid #e7ddc9;
+  font-size: 14px;
+}
+
+.legal-footer a {
+  color: #8a8378;
+  text-decoration: none;
+}
+
+.legal-footer a:hover {
+  color: var(--color-accent);
+}
+
 /* ====== Registro (público) ====== */
 .registro {
   max-width: 480px;

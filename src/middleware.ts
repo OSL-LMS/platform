@@ -33,5 +33,7 @@ export const config = {
   // Corre en todo MENOS: rutas de Auth.js (api/auth), assets internos de Next
   // (_next/static, _next/image), el favicon y archivos con extensión. /signin SÍ
   // pasa por el middleware (la lógica de arriba redirige a usuarios ya autenticados).
-  matcher: ["/((?!api/auth|registro|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+  matcher: [
+    "/((?!api/auth|registro|precios|terminos|privacidad|reembolsos|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+  ],
 };
