@@ -129,6 +129,85 @@ body {
   text-align: center;
 }
 
+/* ====== Landing pública (raíz) ====== */
+.home {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.home__hero {
+  text-align: center;
+  padding: 24px 0 40px;
+}
+
+.home__hero h1 {
+  color: var(--color-accent);
+  font-weight: normal;
+  font-size: 36px;
+  margin: 0 0 16px;
+}
+
+.home__lead {
+  font-size: 18px;
+  max-width: 640px;
+  margin: 0 auto 28px;
+}
+
+.home__cta-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.home__cta-row .pricing__cta {
+  display: inline-block;
+}
+
+.home__how,
+.home__pricing {
+  padding: 28px 0;
+}
+
+.home__how h2,
+.home__pricing h2 {
+  color: var(--color-accent);
+  font-weight: normal;
+  text-align: center;
+  font-size: 26px;
+  margin: 0 0 20px;
+}
+
+.home__how ol {
+  max-width: 620px;
+  margin: 0 auto;
+  padding-left: 22px;
+}
+
+.home__how li {
+  margin-bottom: 12px;
+  font-size: 17px;
+}
+
+.pricing__card h3 {
+  color: var(--color-accent);
+  font-weight: normal;
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.home__detail {
+  text-align: center;
+  margin-top: 18px;
+  font-size: 15px;
+}
+
+.home__detail a,
+.home__pricing a.pricing__cta {
+  color: inherit;
+}
+
 /* ====== Páginas públicas: precios y legales ====== */
 .pricing {
   max-width: 880px;

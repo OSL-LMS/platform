@@ -21,7 +21,7 @@ async function pedirEnlace(formData: FormData) {
   // `redirect: false` evita que Auth.js nos lleve a su página por defecto de
   // "verifica tu correo"; mostramos nuestro propio aviso. `redirectTo` es a
   // dónde vuelve el estudiante tras hacer clic en el enlace del correo.
-  await signIn("resend", { email, redirectTo: "/", redirect: false });
+  await signIn("resend", { email, redirectTo: "/chat", redirect: false });
   // Volvemos a /signin marcando que el enlace ya salió.
   redirect("/signin?enviado=1");
 }

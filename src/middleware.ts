@@ -1,9 +1,9 @@
-// Middleware de Auth.js v5: protege TODAS las rutas de la app.
+// Middleware de Auth.js v5: protege SOLO la app del tutor (/chat). Todo lo demás
+// del sitio es público (landing, precios, registro, páginas legales, login) para
+// que un visitante —y Paddle— pueda verlo sin iniciar sesión.
 //
-// Usa una instancia edge-safe de NextAuth construida SOLO con `authConfig` (sin
-// adapter ni base de datos), para que pueda correr en el Edge runtime sin
-// arrastrar `pg`. La sesión es JWT, así que se valida leyendo la cookie, sin
-// consultar Postgres.
+// Usa una instancia edge-safe (authConfig, sin adapter ni pg). La sesión es JWT,
+// validable en el Edge runtime leyendo la cookie.
 //
 // Regla de código: identificadores en inglés, comentarios en español.
 
@@ -13,27 +13,13 @@ import { authConfig } from "@/auth.config";
 const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
-  const isLoggedIn = !!req.auth;
-  const isOnSignin = req.nextUrl.pathname === "/signin";
-
-  // No autenticado fuera de /signin → redirigir al login.
-  if (!isLoggedIn && !isOnSignin) {
+  // En /chat: sin sesión → al login.
+  if (!req.auth) {
     return Response.redirect(new URL("/signin", req.nextUrl.origin));
   }
-
-  // Ya autenticado pero en /signin → mandar a la app (raíz).
-  if (isLoggedIn && isOnSignin) {
-    return Response.redirect(new URL("/", req.nextUrl.origin));
-  }
-
-  // Resto de casos: dejar pasar.
 });
 
 export const config = {
-  // Corre en todo MENOS: rutas de Auth.js (api/auth), assets internos de Next
-  // (_next/static, _next/image), el favicon y archivos con extensión. /signin SÍ
-  // pasa por el middleware (la lógica de arriba redirige a usuarios ya autenticados).
-  matcher: [
-    "/((?!api/auth|registro|precios|terminos|privacidad|reembolsos|_next/static|_next/image|favicon.ico|.*\\..*).*)",
-  ],
+  // Solo /chat (y subrutas) pasan por el middleware; el resto es público.
+  matcher: ["/chat", "/chat/:path*"],
 };
