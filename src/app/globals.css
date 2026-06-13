@@ -56,6 +56,27 @@ body {
   padding: 2px 4px;
 }
 
+.chat__header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.chat__logout {
+  font: inherit;
+  font-size: 14px;
+  background: none;
+  border: 1px solid #cbbfa6;
+  border-radius: 8px;
+  padding: 4px 10px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.chat__logout:hover {
+  background-color: #f0e8d6;
+}
+
 .chat__messages {
   flex: 1;
   overflow-y: auto;

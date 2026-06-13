@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { logout } from "./actions";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -69,16 +70,23 @@ export default function ChatClient({
     <main className="chat">
       <header className="chat__header">
         <h1>Tu tutor</h1>
-        <label className="chat__lesson">
-          ¿En qué lección vas?
-          <select value={lesson} onChange={(e) => setLesson(e.target.value)}>
-            {LESSONS.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="chat__header-right">
+          <label className="chat__lesson">
+            ¿En qué lección vas?
+            <select value={lesson} onChange={(e) => setLesson(e.target.value)}>
+              {LESSONS.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
+          <form action={logout}>
+            <button type="submit" className="chat__logout">
+              Salir
+            </button>
+          </form>
+        </div>
       </header>
 
       <div className="chat__messages" ref={scrollRef}>
