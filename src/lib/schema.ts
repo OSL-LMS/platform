@@ -131,6 +131,18 @@ export const conversations = pgTable("conversations", {
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
+// Lista de registro (parte ancha del embudo): correos capturados desde el
+// directo de Twitch / VODs para avisos de clase. Es el activo propio que
+// sobrevive a las plataformas. Separada de `user` (eso es el login al tutor).
+export const registrations = pgTable("registrations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  currentLesson: text("current_lesson"), // lección declarada, p. ej. "L1"
+  source: text("source"), // de dónde llegó (p. ej. "twitch", "youtube")
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
 // ---------------------------------------------------------------------------
 // Tipos inferidos (cómodos para los agentes de auth y persistencia)
 // ---------------------------------------------------------------------------
@@ -141,3 +153,5 @@ export type Subscription = typeof subscriptions.$inferSelect;
 export type NewSubscription = typeof subscriptions.$inferInsert;
 export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
+export type Registration = typeof registrations.$inferSelect;
+export type NewRegistration = typeof registrations.$inferInsert;
