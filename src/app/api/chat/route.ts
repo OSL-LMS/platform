@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { TUTOR_SYSTEM_PROMPT } from "@/lib/tutor-prompt";
 import { auth } from "@/auth";
+import { getAccess } from "@/lib/access";
 import {
   getOrCreateConversation,
   appendMessages,
@@ -18,8 +19,15 @@ export async function POST(req: Request) {
   // guardarle la conversación.
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) {
+  const email = session?.user?.email;
+  if (!userId || !email) {
     return new Response("No autorizado", { status: 401 });
+  }
+
+  // Frontera gratis/pago: sin trial vigente ni suscripción activa, no hay tutor.
+  const access = await getAccess(email);
+  if (!access.allowed) {
+    return new Response("Suscripción requerida", { status: 403 });
   }
 
   let body: { messages?: ClientMessage[]; lesson?: string };

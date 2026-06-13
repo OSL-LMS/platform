@@ -11,8 +11,10 @@ const LESSONS = ["L1", "L2", "L3", "L4", "L5", "L6", "L7"];
 // mensajes iniciales. El streaming token a token se conserva intacto.
 export default function ChatClient({
   initialMessages = [],
+  trialDaysLeft = null,
 }: {
   initialMessages?: Message[];
+  trialDaysLeft?: number | null;
 }) {
   const [lesson, setLesson] = useState("L1");
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -88,6 +90,13 @@ export default function ChatClient({
           </form>
         </div>
       </header>
+
+      {trialDaysLeft !== null && trialDaysLeft <= 2 && (
+        <p className="chat__trial">
+          Tu prueba termina en {trialDaysLeft} {trialDaysLeft === 1 ? "día" : "días"} —
+          asegura el precio fundador antes de que suba.
+        </p>
+      )}
 
       <div className="chat__messages" ref={scrollRef}>
         {messages.length === 0 && (
