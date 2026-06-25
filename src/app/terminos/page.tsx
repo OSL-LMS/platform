@@ -17,7 +17,7 @@ export default function TerminosPage() {
         separado ofrecemos, mediante suscripción, acceso a un <strong>tutor de
         inteligencia artificial</strong> que acompaña al estudiante mientras
         practica. El servicio se presta a través del sitio{" "}
-        <strong>tutor.angelkurten.com</strong>.
+        <strong>contextia.io</strong>.
       </p>
 
       <h2>2. Tu cuenta</h2>

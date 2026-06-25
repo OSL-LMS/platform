@@ -21,25 +21,25 @@ export async function POST(req: Request) {
   const userId = session?.user?.id;
   const email = session?.user?.email;
   if (!userId || !email) {
-    return new Response("No autorizado", { status: 401 });
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // Frontera gratis/pago: sin trial vigente ni suscripción activa, no hay tutor.
   const access = await getAccess(email);
   if (!access.allowed) {
-    return new Response("Suscripción requerida", { status: 403 });
+    return Response.json({ error: "Subscription required" }, { status: 403 });
   }
 
   let body: { messages?: ClientMessage[]; lesson?: string };
   try {
     body = await req.json();
   } catch {
-    return new Response("Cuerpo JSON inválido", { status: 400 });
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const messages = body.messages ?? [];
   if (!Array.isArray(messages) || messages.length === 0) {
-    return new Response("Faltan mensajes", { status: 400 });
+    return Response.json({ error: "Missing messages" }, { status: 400 });
   }
 
   // Conversación del usuario (la más reciente o una nueva vacía). La

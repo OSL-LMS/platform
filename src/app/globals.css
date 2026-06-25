@@ -56,6 +56,32 @@ body {
   padding: 2px 4px;
 }
 
+/* En móvil el header no cabe en una fila: el bloque de controles baja a una
+   segunda línea y el label se acorta a "Lección:" para ganar aire. */
+.chat__lesson-short {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .chat__header {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .chat__lesson-full {
+    display: none;
+  }
+  .chat__lesson-short {
+    display: inline;
+  }
+  /* Touch targets más cómodos en móvil (≥40px de alto). */
+  .chat__lesson select {
+    padding: 8px 10px;
+  }
+  .chat__logout {
+    padding: 8px 14px;
+  }
+}
+
 .chat__header-right {
   display: flex;
   align-items: center;

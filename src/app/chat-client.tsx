@@ -7,6 +7,22 @@ type Message = { role: "user" | "assistant"; content: string };
 
 const LESSONS = ["L1", "L2", "L3", "L4", "L5", "L6", "L7"];
 
+// El backend responde { error } en JSON en cualquier fallo (status >= 400). Los
+// códigos van en inglés; aquí los traducimos a un mensaje localizado y honesto
+// según el status: un 401/403 no es transitorio, así que no decimos "reintenta".
+function errorMessageFor(status: number): string {
+  switch (status) {
+    case 401:
+      return "Tu sesión expiró. Vuelve a iniciar sesión para seguir.";
+    case 403:
+      return "Necesitas una suscripción activa para hablar con el tutor.";
+    case 400:
+      return "No pudimos procesar tu mensaje. Recarga la página e intenta otra vez.";
+    default:
+      return "Algo falló al hablar con el tutor. Reintenta en un momento.";
+  }
+}
+
 // Recibe el historial ya cargado en el servidor (Server Component) como
 // mensajes iniciales. El streaming token a token se conserva intacto.
 export default function ChatClient({
@@ -45,7 +61,21 @@ export default function ChatClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: nextMessages, lesson }),
       });
-      if (!res.ok || !res.body) throw new Error("respuesta no válida");
+      if (!res.ok) {
+        // Fallo determinista del servidor: leemos { error } para diagnóstico y
+        // mostramos un mensaje localizado por status (no es transitorio).
+        let code: string | undefined;
+        try {
+          code = (await res.json())?.error;
+        } catch {
+          // Cuerpo vacío o no-JSON: seguimos solo con el status.
+        }
+        if (code) console.error(`/api/chat ${res.status}:`, code);
+        setError(errorMessageFor(res.status));
+        setMessages((m) => m.slice(0, -1)); // quita el hueco del asistente
+        return;
+      }
+      if (!res.body) throw new Error("respuesta sin cuerpo de stream");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -74,7 +104,8 @@ export default function ChatClient({
         <h1>Tu tutor</h1>
         <div className="chat__header-right">
           <label className="chat__lesson">
-            ¿En qué lección vas?
+            <span className="chat__lesson-full">¿En qué lección vas?</span>
+            <span className="chat__lesson-short">Lección:</span>
             <select value={lesson} onChange={(e) => setLesson(e.target.value)}>
               {LESSONS.map((l) => (
                 <option key={l} value={l}>
