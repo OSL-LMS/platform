@@ -12,21 +12,37 @@ export default function HomePage() {
       <section className="home__hero">
         {/* eslint-disable-next-line @next/next/no-img-element -- SVG con contornos, sin optimizar */}
         <img className="home__wordmark" src="/wordmark.svg" alt="Contextia" width={220} height={45} />
-        <h1>Aprende a programar con un tutor que no te da la respuesta</h1>
+        <h1>
+          El martes 14 de julio publicas tu primera página en internet. Con tu
+          nombre.
+        </h1>
         <p className="home__lead">
-          Una escuela online donde aprendes a ser developer en la era de la IA.
-          Las clases, las grabaciones y la comunidad son <strong>gratis</strong>.
-          Y cuando te atascas, un tutor de IA te acompaña 24/7 — te guía con
-          preguntas y pistas, sin resolverte el ejercicio.
+          Clase en vivo y gratis por Twitch, 20:00 hora de Colombia. Aquí no
+          aprendes a escribir el código que ya escribe la IA: aprendes a leerlo,
+          juzgarlo y dirigirlo — que es lo que hoy se contrata. Las clases, las
+          grabaciones y la comunidad son <strong>gratis</strong>, siempre.
         </p>
+
+        {/* Un solo CTA, y es el gratuito. La regla del CTA de `Formato del directo`
+            y la Escaleta de T0: el tutor de pago no se vende antes de que exista
+            la tarea que produce el atasco. */}
         <div className="home__cta-row">
-          <Link className="pricing__cta" href="/signin">
-            Empezar mi prueba de 7 días
-          </Link>
-          <Link className="pricing__cta pricing__cta--ghost" href="/registro">
-            Registrarme gratis
+          <Link className="pricing__cta" href="/registro">
+            Avísame de la primera clase
           </Link>
         </div>
+        <p className="home__cta-note">
+          Solo tu correo. Nada que pagar hoy: el tutor llega cuando te atasques.
+        </p>
+
+        <p className="home__next">
+          Próxima clase: <strong>martes 14 de julio, 20:00 h</strong> (hora de
+          Colombia). En directo y gratis en{" "}
+          <a href="https://twitch.tv/angelkurten" target="_blank" rel="noreferrer">
+            twitch.tv/angelkurten
+          </a>
+          .
+        </p>
       </section>
 
       <section className="home__how">
@@ -58,8 +74,8 @@ export default function HomePage() {
               <li>Guías paso a paso</li>
               <li>Comunidad</li>
             </ul>
-            <Link className="pricing__cta pricing__cta--ghost" href="/registro">
-              Registrarme
+            <Link className="pricing__cta" href="/registro">
+              Registrarme gratis
             </Link>
           </div>
           <div className="pricing__card pricing__card--highlight">
@@ -68,7 +84,8 @@ export default function HomePage() {
               $9,99 <span>USD / mes</span>
             </p>
             <p className="pricing__trial">
-              7 días de prueba gratis · precio fundador · ajustado a tu país
+              7 días de prueba gratis, sin tarjeta · precio fundador · ajustado a
+              tu país
             </p>
             <ul>
               <li>El tutor de IA, 24/7</li>
@@ -76,8 +93,10 @@ export default function HomePage() {
               <li>Recuerda tu progreso</li>
               <li>Cancela cuando quieras</li>
             </ul>
-            <Link className="pricing__cta" href="/signin">
-              Empezar mi prueba
+            {/* No "empezar la prueba" desde la home: el trial nace al primer login
+                y se agotaría antes de que exista la tarea de L1 (21 de julio). */}
+            <Link className="pricing__cta pricing__cta--ghost" href="/precios">
+              Cómo funciona el tutor
             </Link>
           </div>
         </div>

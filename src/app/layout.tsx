@@ -29,10 +29,29 @@ const plexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
+// `metadataBase` es lo que convierte /opengraph-image.png en una URL absoluta.
+// Sin él, Next no emite la tarjeta y los enlaces se comparten como un rectángulo
+// gris. La imagen y su alt viven en src/app/opengraph-image.{png,alt.txt}.
 export const metadata: Metadata = {
-  title: "Contextia — el tutor que no te da la respuesta",
+  metadataBase: new URL("https://contextia.io"),
+  title: "Contextia — la escuela de developers de la era de la IA",
   description:
-    "La escuela donde aprendes a leer y juzgar código en la era de la IA. Clases gratis; el tutor te desatasca sin resolverte el ejercicio.",
+    "Aprende a leer y juzgar el código que escribe la IA. Clases en vivo y gratis por Twitch, martes y jueves a las 20:00 hora de Colombia.",
+  openGraph: {
+    type: "website",
+    locale: "es_ES",
+    url: "https://contextia.io",
+    siteName: "Contextia",
+    title: "El martes 14 de julio publicas tu primera página en internet",
+    description:
+      "Escuela online de programación, en español y desde cero. Clases en vivo y gratis por Twitch. No prometemos empleo: prometemos evidencia.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "El martes 14 de julio publicas tu primera página en internet",
+    description:
+      "Escuela online de programación, en español y desde cero. Clases en vivo y gratis por Twitch.",
+  },
 };
 
 export default function RootLayout({

@@ -39,6 +39,9 @@ body {
 h1, h2, h3 {
   font-family: var(--font-serif);
   font-weight: 600;
+  /* Sin esto heredan el 1.55 del body: un titular de 36px con 55.8px de
+     interlineado, cinco líneas en móvil, y el CTA fuera del pliegue. */
+  line-height: 1.14;
   letter-spacing: -0.01em;
   text-wrap: balance;
 }
@@ -270,6 +273,31 @@ h1, h2, h3 {
   flex-wrap: wrap;
 }
 
+.home__cta-note {
+  margin: 12px 0 0;
+  font-size: 15px;
+  color: var(--color-ink-muted);
+}
+
+/* La cita: fecha y hora, nunca un contador. La urgencia falsa está prohibida
+   (regla 6 de la identidad); una fecha no es urgencia, es información. */
+.home__next {
+  margin: 32px auto 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-rule);
+  max-width: 560px;
+  font-size: 16px;
+  color: var(--color-ink-muted);
+}
+
+.home__next strong {
+  color: var(--color-ink);
+}
+
+.home__next a {
+  color: var(--color-correction);
+}
+
 .home__cta-row .pricing__cta {
   display: inline-block;
 }
@@ -308,9 +336,11 @@ h1, h2, h3 {
   font-size: 15px;
 }
 
-.home__detail a,
-.home__pricing a.pricing__cta {
-  color: inherit;
+/* Este selector antes incluía `.home__pricing a.pricing__cta`, y con especificidad
+   (0,2,1) le ganaba a `.pricing__cta` (0,1,0): el botón relleno de la sección de
+   precio quedaba con texto tinta sobre bermellón — 3,26:1, falla WCAG AA. */
+.home__detail a {
+  color: var(--color-correction);
 }
 
 /* ====== Páginas públicas: precios y legales ====== */
