@@ -82,24 +82,36 @@ export default function HomePage() {
 
         <section className="home__teacher">
           <h2>Quién te enseña</h2>
-          <p className="home__section-lead">
-            Angel Kürten. Llevo más de quince años construyendo software y hoy
-            dirijo un equipo de ingeniería, que pasé de 3 a 18 personas. He estado
-            muchas veces al otro lado de la mesa cuando se contrata: sé lo que
-            alguien como yo mira —y lo que ignora— cuando revisa el trabajo de un
-            candidato.
-          </p>
-          <p className="home__section-lead">
-            Doy cada clase en directo y sin editar. Cuando algo falla en pantalla,
-            lo depuramos delante de ti: es la lección de programación más honesta
-            que existe, y ningún vídeo grabado te la puede dar.
-          </p>
-          <p className="home__detail">
-            Puedes verme antes de decidir nada:{" "}
-            <a href="https://twitch.tv/angelkurten" target="_blank" rel="noreferrer">
-              twitch.tv/angelkurten
-            </a>
-          </p>
+          <div className="home__teacher-body">
+            {/* eslint-disable-next-line @next/next/no-img-element -- retrato estático */}
+            <img
+              className="home__portrait"
+              src="/angel-kurten.jpg"
+              alt="Retrato de Angel Kürten"
+              width={140}
+              height={140}
+            />
+            <div>
+              <p className="home__section-lead">
+                Angel Kürten. Llevo más de quince años construyendo software y hoy
+                dirijo un equipo de ingeniería, que pasé de 3 a 18 personas. He
+                estado muchas veces al otro lado de la mesa cuando se contrata: sé
+                lo que alguien como yo mira —y lo que ignora— cuando revisa el
+                trabajo de un candidato.
+              </p>
+              <p className="home__section-lead">
+                Doy cada clase en directo y sin editar. Cuando algo falla en
+                pantalla, lo depuramos delante de ti: es la lección de programación
+                más honesta que existe, y ningún vídeo grabado te la puede dar.
+              </p>
+              <p className="home__detail">
+                Puedes verme antes de decidir nada:{" "}
+                <a href="https://twitch.tv/angelkurten" target="_blank" rel="noreferrer">
+                  twitch.tv/angelkurten
+                </a>
+              </p>
+            </div>
+          </div>
         </section>
 
         <section className="home__how">

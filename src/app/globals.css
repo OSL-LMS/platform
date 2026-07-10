@@ -345,9 +345,37 @@ h1, h2, h3 {
   margin: 0;
 }
 
+/* El retrato al margen, como una fotografía pegada en una página. En móvil
+   se apila y se centra. */
+.home__teacher-body {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+.home__portrait {
+  flex: 0 0 auto;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--color-rule);
+}
+
 .home__teacher .home__detail {
   text-align: left;
   margin-top: 12px;
+}
+
+.home__teacher .home__section-lead:last-of-type {
+  margin-bottom: 0;
+}
+
+@media (max-width: 620px) {
+  .home__teacher-body {
+    flex-direction: column;
+    gap: 20px;
+  }
 }
 
 .home__teacher a,
