@@ -93,11 +93,11 @@ export default function HomePage() {
             />
             <div>
               <p className="home__section-lead">
-                Angel Kürten. Llevo más de quince años construyendo software y hoy
-                dirijo un equipo de ingeniería, que pasé de 3 a 18 personas. He
-                estado muchas veces al otro lado de la mesa cuando se contrata: sé
-                lo que alguien como yo mira —y lo que ignora— cuando revisa el
-                trabajo de un candidato.
+                Angel Kürten. Llevo más de quince años construyendo software y he
+                liderado equipos de ingeniería de más de 30 personas. He estado
+                muchas veces al otro lado de la mesa cuando se contrata: sé lo que
+                alguien como yo mira —y lo que ignora— cuando revisa el trabajo de
+                un candidato.
               </p>
               <p className="home__section-lead">
                 Doy cada clase en directo y sin editar. Cuando algo falla en
