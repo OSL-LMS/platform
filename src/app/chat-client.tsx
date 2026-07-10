@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { logout } from "./actions";
+import { LESSONS } from "@/lib/lessons";
+import { formatMessage } from "@/lib/format-message";
 
 type Message = { role: "user" | "assistant"; content: string };
-
-const LESSONS = ["L1", "L2", "L3", "L4", "L5", "L6", "L7"];
 
 // El backend responde { error } en JSON en cualquier fallo (status >= 400). Los
 // códigos van en inglés; aquí los traducimos a un mensaje localizado y honesto
@@ -23,6 +23,28 @@ function errorMessageFor(status: number): string {
   }
 }
 
+// El código va en monoespaciada aunque el resto del mensaje sea prosa: un
+// `git status` dentro de un párrafo se lee mal en una tipografía de texto.
+function MessageBody({ content }: { content: string }) {
+  return (
+    <>
+      {formatMessage(content).map((chunk, i) =>
+        chunk.kind === "text" ? (
+          <span key={i}>{chunk.value}</span>
+        ) : chunk.block ? (
+          <pre key={i} className="bubble__code">
+            <code>{chunk.value}</code>
+          </pre>
+        ) : (
+          <code key={i} className="bubble__inline-code">
+            {chunk.value}
+          </code>
+        )
+      )}
+    </>
+  );
+}
+
 // Recibe el historial ya cargado en el servidor (Server Component) como
 // mensajes iniciales. El streaming token a token se conserva intacto.
 export default function ChatClient({
@@ -38,10 +60,19 @@ export default function ChatClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, busy]);
+
+  // El campo crece con el texto hasta un tope, y vuelve a encogerse al enviar.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [input]);
 
   async function send() {
     const text = input.trim();
@@ -108,8 +139,8 @@ export default function ChatClient({
             <span className="chat__lesson-short">Lección:</span>
             <select value={lesson} onChange={(e) => setLesson(e.target.value)}>
               {LESSONS.map((l) => (
-                <option key={l} value={l}>
-                  {l}
+                <option key={l.id} value={l.id}>
+                  {l.id} — {l.title}
                 </option>
               ))}
             </select>
@@ -138,12 +169,30 @@ export default function ChatClient({
         )}
         {messages.map((m, i) => (
           <div key={i} className={`bubble bubble--${m.role}`}>
-            {m.content || (busy && i === messages.length - 1 ? "…" : "")}
+            {m.content ? (
+              <MessageBody content={m.content} />
+            ) : busy && i === messages.length - 1 ? (
+              "…"
+            ) : (
+              ""
+            )}
           </div>
         ))}
       </div>
 
-      {error && <p className="chat__error">{error}</p>}
+      {/* No ponemos aria-live sobre el stream: anunciaría token a token. Basta con
+          avisar de que el tutor está respondiendo; el texto queda luego en el DOM. */}
+      <p className="sr-only" role="status">
+        {busy ? "El tutor está escribiendo una respuesta." : ""}
+      </p>
+
+      {/* role="alert" para que un lector de pantalla anuncie el fallo: sin esto
+          el error solo existe para quien puede verlo. */}
+      {error && (
+        <p className="chat__error" role="alert">
+          {error}
+        </p>
+      )}
 
       <form
         className="chat__form"
@@ -152,15 +201,29 @@ export default function ChatClient({
           send();
         }}
       >
-        <input
+        <label className="sr-only" htmlFor="chat-input">
+          Escribe tu mensaje para el tutor
+        </label>
+        <textarea
+          id="chat-input"
+          ref={inputRef}
+          rows={1}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Escribe aquí…"
+          // Enter envía; Shift+Enter salta de línea. Un estudiante pega errores de
+          // consola y fragmentos de código: el campo tiene que aguantar varias líneas.
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          placeholder="Escribe aquí… (Enter envía, Shift+Enter salta de línea)"
           disabled={busy}
           autoFocus
         />
         <button type="submit" disabled={busy || !input.trim()}>
-          Enviar
+          {busy ? "Enviando…" : "Enviar"}
         </button>
       </form>
     </main>

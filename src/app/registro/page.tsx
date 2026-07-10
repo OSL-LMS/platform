@@ -2,8 +2,7 @@
 
 import { useActionState } from "react";
 import { register, type RegisterResult } from "./actions";
-
-const LESSONS = ["L1", "L2", "L3", "L4", "L5", "L6", "L7"];
+import { LESSONS } from "@/lib/lessons";
 
 // Página pública de registro (parte ancha del embudo): captura correo + lección
 // para avisos de clase. Excluida del middleware de auth (es pública).
@@ -35,26 +34,42 @@ export default function RegistroPage() {
       <form className="registro__form" action={formAction}>
         <label>
           Tu correo
-          <input type="email" name="email" placeholder="tu@correo.com" required autoFocus />
+          <input
+            type="email"
+            name="email"
+            placeholder="tu@correo.com"
+            autoComplete="email"
+            required
+            autoFocus
+          />
         </label>
 
         <label>
           Tu nombre <span className="registro__opt">(opcional)</span>
-          <input type="text" name="name" placeholder="¿Cómo te llamas?" />
+          <input
+            type="text"
+            name="name"
+            placeholder="¿Cómo te llamas?"
+            autoComplete="given-name"
+          />
         </label>
 
         <label>
           ¿En qué lección vas? <span className="registro__opt">(si ya empezaste)</span>
           <select name="lesson" defaultValue="L1">
             {LESSONS.map((l) => (
-              <option key={l} value={l}>
-                {l}
+              <option key={l.id} value={l.id}>
+                {l.id} — {l.title}
               </option>
             ))}
           </select>
         </label>
 
-        {result && !result.ok && <p className="registro__error">{result.message}</p>}
+        {result && !result.ok && (
+          <p className="registro__error" role="alert">
+            {result.message}
+          </p>
+        )}
 
         <button type="submit" disabled={pending}>
           {pending ? "Registrando…" : "Avísame de las clases"}

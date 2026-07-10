@@ -37,9 +37,12 @@ export default function PreciosPage() {
         <section className="pricing__card pricing__card--highlight">
           <h2>Tutor</h2>
           <p className="pricing__price">
-            $10 <span>USD / mes</span>
+            $9,99 <span>USD / mes</span>
           </p>
-          <p className="pricing__trial">7 días de prueba gratis · precio fundador</p>
+          <p className="pricing__trial">
+            7 días de prueba gratis, sin tarjeta · precio fundador vitalicio ·
+            el importe se ajusta a tu país
+          </p>
           <ul>
             <li>El tutor de IA, 24/7</li>
             <li>Método socrático: te guía, no te da la respuesta</li>

@@ -17,5 +17,6 @@
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "//": "scripts/ son utilidades que ejecuta Node directamente (importan con extensión .ts, que tsc no acepta sin allowImportingTsExtensions). No forman parte del bundle.",
+  "exclude": ["node_modules", "scripts"]
 }

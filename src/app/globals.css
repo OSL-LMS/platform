@@ -1,8 +1,22 @@
+/* Identidad visual de Contextia — "la tinta de corrección".
+   Los valores y las reglas viven en la bóveda: 60 Negocio/Identidad visual.md
+   Contrastes medidos (WCAG 2.1): tinta/papel 16.02:1 · secundario/papel 5.19:1
+   · bermellón/papel 4.92:1 · error/papel 7.01:1 */
 :root {
-  --color-bg: #fdf6ec;
-  --color-text: #2d2a26;
-  --color-accent: #c2571b;
-  --color-user: #1b6ec2;
+  --color-paper: #f7f3ec;      /* fondo — hueso cálido, no blanco */
+  --color-surface: #fffdf9;    /* papel elevado: tarjetas, burbujas del tutor */
+  --color-highlight: #f2ece1;  /* avisos, hover */
+  --color-rule: #ddd6cb;       /* bordes y filetes. No es color de texto */
+  --color-ink: #1a1815;        /* texto principal — negro cálido, nunca #000 */
+  --color-ink-muted: #6b6560;  /* texto secundario */
+  --color-correction: #c0392b; /* el único acento: la marca roja al margen */
+
+  /* El bermellón corrige, no alarma (regla 6). Los errores llevan su propio rojo. */
+  --color-error: #a4161a;
+
+  --font-serif: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-plex-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
 * {
@@ -11,11 +25,42 @@
 
 body {
   margin: 0;
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  font-family: Georgia, "Times New Roman", serif;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
   font-size: 17px;
-  line-height: 1.5;
+  line-height: 1.55;
+}
+
+/* Titulares en serif, párrafos nunca (regla 4 de la identidad).
+   El peso 600 es el que carga next/font: pedir "normal" obligaría al navegador
+   a sintetizar un 400 que no existe. Y van en tinta, no en bermellón: el acento
+   señala una cosa por pieza (regla 2), y esa cosa es la llamada a la acción. */
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+/* El foco se ve siempre: es la única señal de dónde estás si navegas con teclado. */
+:focus-visible {
+  outline: 2px solid var(--color-correction);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Visible para lectores de pantalla, invisible en pantalla. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .chat {
@@ -32,13 +77,11 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  border-bottom: 3px solid var(--color-accent);
+  border-bottom: 3px solid var(--color-correction);
   padding-bottom: 12px;
 }
 
 .chat__header h1 {
-  color: var(--color-accent);
-  font-weight: normal;
   margin: 0;
   font-size: 28px;
 }
@@ -91,16 +134,17 @@ body {
 .chat__logout {
   font: inherit;
   font-size: 14px;
+  min-height: 44px;
   background: none;
-  border: 1px solid #cbbfa6;
+  border: 1px solid var(--color-rule);
   border-radius: 8px;
   padding: 4px 10px;
-  color: var(--color-text);
+  color: var(--color-ink);
   cursor: pointer;
 }
 
 .chat__logout:hover {
-  background-color: #f0e8d6;
+  background-color: var(--color-highlight);
 }
 
 .chat__messages {
@@ -113,7 +157,7 @@ body {
 }
 
 .chat__empty {
-  color: #8a8378;
+  color: var(--color-ink-muted);
   font-style: italic;
   margin: auto 0;
   text-align: center;
@@ -127,20 +171,54 @@ body {
   word-wrap: break-word;
 }
 
+/* Lo que escribe el estudiante va en tinta; lo que responde el tutor, en papel
+   con su filete. La conversación se lee como una página corregida. */
 .bubble--user {
   align-self: flex-end;
-  background-color: var(--color-user);
-  color: var(--color-bg);
+  background-color: var(--color-ink);
+  color: var(--color-paper);
 }
 
 .bubble--assistant {
   align-self: flex-start;
-  background-color: #fff;
-  border: 1px solid #e7ddc9;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-rule);
+}
+
+/* El código, en monoespaciada. Dentro de la burbuja en tinta el fondo se aclara
+   un poco en vez de oscurecerse: sobre tinta, oscurecer no se vería. */
+.bubble__inline-code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background-color: rgba(26, 24, 21, 0.07);
+}
+
+.bubble--user .bubble__inline-code {
+  background-color: rgba(247, 243, 236, 0.16);
+}
+
+.bubble__code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  margin: 8px 0 2px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  background-color: rgba(26, 24, 21, 0.06);
+}
+
+.bubble--user .bubble__code {
+  background-color: rgba(247, 243, 236, 0.14);
+}
+
+.bubble__code code {
+  font: inherit;
 }
 
 .chat__error {
-  color: #b00020;
+  color: var(--color-error);
   font-size: 14px;
   text-align: center;
 }
@@ -148,8 +226,8 @@ body {
 .chat__trial {
   margin: 0 0 8px;
   padding: 8px 12px;
-  background-color: #f7edd6;
-  border: 1px solid #e0cfa0;
+  background-color: var(--color-highlight);
+  border: 1px solid var(--color-rule);
   border-radius: 10px;
   font-size: 14px;
   text-align: center;
@@ -167,9 +245,14 @@ body {
   padding: 24px 0 40px;
 }
 
+.home__wordmark {
+  height: 45px;
+  width: auto;
+  margin: 0 auto 28px;
+  display: block;
+}
+
 .home__hero h1 {
-  color: var(--color-accent);
-  font-weight: normal;
   font-size: 36px;
   margin: 0 0 16px;
 }
@@ -198,8 +281,6 @@ body {
 
 .home__how h2,
 .home__pricing h2 {
-  color: var(--color-accent);
-  font-weight: normal;
   text-align: center;
   font-size: 26px;
   margin: 0 0 20px;
@@ -217,8 +298,6 @@ body {
 }
 
 .pricing__card h3 {
-  color: var(--color-accent);
-  font-weight: normal;
   margin: 0 0 4px;
   font-size: 22px;
 }
@@ -242,8 +321,6 @@ body {
 }
 
 .pricing h1 {
-  color: var(--color-accent);
-  font-weight: normal;
   font-size: 34px;
   margin: 0 0 12px;
   text-align: center;
@@ -266,20 +343,18 @@ body {
 .pricing__card {
   flex: 1 1 280px;
   max-width: 360px;
-  background: #fff;
-  border: 1px solid #e7ddc9;
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
   border-radius: 16px;
   padding: 24px;
 }
 
 .pricing__card--highlight {
-  border-color: var(--color-accent);
+  border-color: var(--color-correction);
   border-width: 2px;
 }
 
 .pricing__card h2 {
-  color: var(--color-accent);
-  font-weight: normal;
   margin: 0 0 4px;
 }
 
@@ -290,11 +365,11 @@ body {
 
 .pricing__price span {
   font-size: 16px;
-  color: #8a8378;
+  color: var(--color-ink-muted);
 }
 
 .pricing__trial {
-  color: #8a8378;
+  color: var(--color-ink-muted);
   font-size: 14px;
   margin: 4px 0 12px;
 }
@@ -314,16 +389,15 @@ body {
   text-decoration: none;
   padding: 12px 18px;
   border-radius: 10px;
-  background-color: var(--color-accent);
-  color: var(--color-bg);
+  background-color: var(--color-correction);
+  color: var(--color-paper);
   font-weight: bold;
 }
 
 .pricing__cta--ghost {
   background: none;
-  color: var(--color-accent);
-  border: 1px solid var(--color-accent);
-  font-weight: normal;
+  color: var(--color-correction);
+  border: 1px solid var(--color-correction);
 }
 
 .legal {
@@ -333,26 +407,22 @@ body {
 }
 
 .legal h1 {
-  color: var(--color-accent);
-  font-weight: normal;
   margin: 0 0 4px;
 }
 
 .legal__updated {
-  color: #8a8378;
+  color: var(--color-ink-muted);
   font-size: 14px;
   margin: 0 0 28px;
 }
 
 .legal h2 {
   font-size: 19px;
-  font-weight: normal;
-  color: var(--color-accent);
   margin: 28px 0 8px;
 }
 
 .legal a {
-  color: var(--color-user);
+  color: var(--color-correction);
 }
 
 .legal-footer {
@@ -362,17 +432,17 @@ body {
   justify-content: center;
   margin-top: 48px;
   padding-top: 20px;
-  border-top: 1px solid #e7ddc9;
+  border-top: 1px solid var(--color-rule);
   font-size: 14px;
 }
 
 .legal-footer a {
-  color: #8a8378;
+  color: var(--color-ink-muted);
   text-decoration: none;
 }
 
 .legal-footer a:hover {
-  color: var(--color-accent);
+  color: var(--color-correction);
 }
 
 /* ====== Registro (público) ====== */
@@ -388,8 +458,6 @@ body {
 }
 
 .registro h1 {
-  color: var(--color-accent);
-  font-weight: normal;
   font-size: 30px;
   margin: 0;
 }
@@ -413,7 +481,7 @@ body {
 }
 
 .registro__opt {
-  color: #8a8378;
+  color: var(--color-ink-muted);
   font-size: 13px;
 }
 
@@ -422,9 +490,9 @@ body {
   font: inherit;
   font-size: 16px;
   padding: 10px 12px;
-  border: 1px solid #cbbfa6;
+  border: 1px solid var(--color-rule);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .registro__form button {
@@ -434,8 +502,8 @@ body {
   padding: 12px 18px;
   border: none;
   border-radius: 10px;
-  background-color: var(--color-accent);
-  color: var(--color-bg);
+  background-color: var(--color-correction);
+  color: var(--color-paper);
   cursor: pointer;
 }
 
@@ -445,7 +513,7 @@ body {
 }
 
 .registro__error {
-  color: #b00020;
+  color: var(--color-error);
   font-size: 14px;
   margin: 0;
 }
@@ -464,8 +532,6 @@ body {
 }
 
 .paywall h1 {
-  color: var(--color-accent);
-  font-weight: normal;
   font-size: 32px;
   margin: 0;
 }
@@ -477,13 +543,19 @@ body {
   padding: 12px 24px;
   border: none;
   border-radius: 12px;
-  background-color: var(--color-accent);
-  color: var(--color-bg);
+  background-color: var(--color-correction);
+  color: var(--color-paper);
   cursor: pointer;
 }
 
+.paywall__error {
+  color: var(--color-error);
+  font-size: 15px;
+  margin: 0;
+}
+
 .paywall__note {
-  color: #8a8378;
+  color: var(--color-ink-muted);
   font-size: 15px;
   margin: 0;
 }
@@ -493,7 +565,7 @@ body {
   font-size: 13px;
   background: none;
   border: none;
-  color: #8a8378;
+  color: var(--color-ink-muted);
   text-decoration: underline;
   cursor: pointer;
   margin-top: 8px;
@@ -503,25 +575,35 @@ body {
   display: flex;
   gap: 8px;
   padding-top: 12px;
-  border-top: 1px solid #e7ddc9;
+  border-top: 1px solid var(--color-rule);
 }
 
-.chat__form input {
+.chat__form {
+  align-items: flex-end;
+}
+
+/* Crece con el texto (la altura la ajusta el componente) hasta 160px. */
+.chat__form textarea {
   flex: 1;
   font: inherit;
+  min-height: 44px;
+  max-height: 160px;
   padding: 10px 12px;
-  border: 1px solid #cbbfa6;
+  border: 1px solid var(--color-rule);
   border-radius: 10px;
-  background: #fff;
+  background: var(--color-surface);
+  resize: none;
+  overflow-y: auto;
 }
 
 .chat__form button {
   font: inherit;
+  min-height: 44px;
   padding: 10px 18px;
   border: none;
   border-radius: 10px;
-  background-color: var(--color-accent);
-  color: var(--color-bg);
+  background-color: var(--color-correction);
+  color: var(--color-paper);
   cursor: pointer;
 }
 

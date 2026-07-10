@@ -10,6 +10,8 @@ export default function HomePage() {
   return (
     <main className="home">
       <section className="home__hero">
+        {/* eslint-disable-next-line @next/next/no-img-element -- SVG con contornos, sin optimizar */}
+        <img className="home__wordmark" src="/wordmark.svg" alt="Contextia" width={220} height={45} />
         <h1>Aprende a programar con un tutor que no te da la respuesta</h1>
         <p className="home__lead">
           Una escuela online donde aprendes a ser developer en la era de la IA.
@@ -63,9 +65,11 @@ export default function HomePage() {
           <div className="pricing__card pricing__card--highlight">
             <h3>Tutor</h3>
             <p className="pricing__price">
-              $10 <span>USD / mes</span>
+              $9,99 <span>USD / mes</span>
             </p>
-            <p className="pricing__trial">7 días de prueba gratis · precio fundador</p>
+            <p className="pricing__trial">
+              7 días de prueba gratis · precio fundador · ajustado a tu país
+            </p>
             <ul>
               <li>El tutor de IA, 24/7</li>
               <li>Te guía, no te da la respuesta</li>

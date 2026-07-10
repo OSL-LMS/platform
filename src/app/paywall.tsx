@@ -18,6 +18,7 @@ export default function Paywall({
   email: string;
 }) {
   const [paddle, setPaddle] = useState<Paddle>();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
@@ -32,9 +33,12 @@ export default function Paywall({
   function openCheckout() {
     const priceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID;
     if (!paddle || !priceId) {
-      alert("El pago aún no está disponible. Vuelve en un momento.");
+      // Nada de alert(): bloquea la página y es lo último que quieres en la
+      // pantalla donde cobras. El aviso vive en el flujo, y se puede reintentar.
+      setError("El pago aún se está cargando. Espera un momento y vuelve a pulsar.");
       return;
     }
+    setError(null);
     paddle.Checkout.open({
       items: [{ priceId, quantity: 1 }],
       customer: { email },
@@ -58,6 +62,12 @@ export default function Paywall({
       <button className="paywall__cta" onClick={openCheckout}>
         Suscribirme — precio fundador
       </button>
+
+      {error && (
+        <p className="paywall__error" role="alert">
+          {error}
+        </p>
+      )}
 
       <p className="paywall__note">
         Mientras tanto, las clases, las grabaciones y la comunidad del Discord
