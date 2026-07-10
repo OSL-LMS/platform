@@ -237,10 +237,122 @@ h1, h2, h3 {
 }
 
 /* ====== Landing pública (raíz) ====== */
+.site-header {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 20px 24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.site-header__wordmark {
+  height: 31px;
+  width: auto;
+  display: block;
+}
+
+.site-header a {
+  color: var(--color-ink-muted);
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.site-header a:hover {
+  color: var(--color-correction);
+}
+
 .home {
   max-width: 880px;
   margin: 0 auto;
   padding: 48px 24px;
+}
+
+/* Cada sección: un titular, un párrafo y como mucho una imagen. La marca es la
+   contención — papel, tinta, una marca roja al margen. Ni rejillas ni tarjetas. */
+.home__first,
+.home__teacher,
+.home__program,
+.home__faq {
+  padding: 40px 0;
+  border-top: 1px solid var(--color-rule);
+}
+
+.home__first h2,
+.home__teacher h2,
+.home__program h2,
+.home__faq h2 {
+  font-size: 26px;
+  margin: 0 0 16px;
+}
+
+.home__section-lead {
+  font-size: 18px;
+  max-width: 620px;
+  margin: 0 0 24px;
+}
+
+.home__shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+}
+
+.home__caption {
+  margin: 12px 0 0;
+  font-size: 15px;
+  color: var(--color-ink-muted);
+}
+
+/* El programa: una lista, no una rejilla de tarjetas. */
+.home__lessons {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-width: 620px;
+}
+
+.home__lessons li {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-rule);
+  font-size: 17px;
+}
+
+.home__lessons li:last-child {
+  border-bottom: none;
+}
+
+.home__lesson-id {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--color-correction);
+  min-width: 26px;
+}
+
+.home__faq h3 {
+  font-size: 19px;
+  margin: 28px 0 6px;
+}
+
+.home__faq p {
+  max-width: 620px;
+  margin: 0;
+}
+
+.home__teacher .home__detail {
+  text-align: left;
+  margin-top: 12px;
+}
+
+.home__teacher a,
+.home__first a {
+  color: var(--color-correction);
 }
 
 .home__hero {
@@ -248,20 +360,16 @@ h1, h2, h3 {
   padding: 24px 0 40px;
 }
 
-.home__wordmark {
-  height: 45px;
-  width: auto;
-  margin: 0 auto 28px;
-  display: block;
-}
 
 .home__hero h1 {
   font-size: 36px;
   margin: 0 0 16px;
 }
 
+/* 20px sobre un cuerpo de 17px: a 18px la diferencia era imperceptible y el
+   párrafo que sostiene el titular no se leía como tal. */
 .home__lead {
-  font-size: 18px;
+  font-size: 20px;
   max-width: 640px;
   margin: 0 auto 28px;
 }
@@ -302,21 +410,23 @@ h1, h2, h3 {
   display: inline-block;
 }
 
+/* Mismo ritmo para todas las secciones: filete arriba, titular a la izquierda.
+   Solo el hero va centrado. */
 .home__how,
 .home__pricing {
-  padding: 28px 0;
+  padding: 40px 0;
+  border-top: 1px solid var(--color-rule);
 }
 
 .home__how h2,
 .home__pricing h2 {
-  text-align: center;
   font-size: 26px;
   margin: 0 0 20px;
 }
 
 .home__how ol {
   max-width: 620px;
-  margin: 0 auto;
+  margin: 0;
   padding-left: 22px;
 }
 
@@ -341,6 +451,33 @@ h1, h2, h3 {
    precio quedaba con texto tinta sobre bermellón — 3,26:1, falla WCAG AA. */
 .home__detail a {
   color: var(--color-correction);
+}
+
+/* La landing no tenía ninguna media query: la única del archivo cubría el chat.
+   El grueso del tráfico llega desde TikTok e Instagram, en móvil. */
+@media (max-width: 480px) {
+  .home,
+  .pricing {
+    padding: 32px 20px;
+  }
+  .home__hero {
+    padding: 8px 0 32px;
+  }
+  .home__hero h1 {
+    font-size: 30px;
+  }
+  .home__lead {
+    font-size: 18px;
+    text-align: left;
+  }
+  /* Apilados y con anchos distintos quedaban desalineados. */
+  .home__cta-row .pricing__cta {
+    width: 100%;
+  }
+  .home__how h2,
+  .home__pricing h2 {
+    font-size: 24px;
+  }
 }
 
 /* ====== Páginas públicas: precios y legales ====== */
@@ -388,8 +525,10 @@ h1, h2, h3 {
   margin: 0 0 4px;
 }
 
+/* 28px, no 34px: en una página cuyo mensaje es "gratis", el precio no compite
+   con el titular. */
 .pricing__price {
-  font-size: 34px;
+  font-size: 28px;
   margin: 0;
 }
 
@@ -428,6 +567,25 @@ h1, h2, h3 {
   background: none;
   color: var(--color-correction);
   border: 1px solid var(--color-correction);
+}
+
+/* El elemento de conversión del sitio tiene que reaccionar al puntero.
+   Ni sombras ni brillos: la tinta un punto más densa (regla 3 de la identidad). */
+.pricing__cta {
+  transition: filter 0.15s ease-out;
+}
+
+.pricing__cta:hover {
+  filter: brightness(0.92);
+}
+
+.pricing__cta:active {
+  filter: brightness(0.85);
+}
+
+.pricing__cta--ghost:hover {
+  filter: none;
+  background-color: var(--color-highlight);
 }
 
 .legal {
