@@ -41,13 +41,18 @@ export async function register(
       await resend.emails.send({
         from: "tutor@angelkurten.com",
         to: email,
-        subject: "¡Estás dentro! Pronto empezamos",
+        subject: "¡Estás dentro! Empieza hoy con la clase 1",
         text:
-          "Gracias por registrarte.\n\n" +
-          "Te avisaré de cada clase en vivo. En ellas vas a publicar tu primera " +
-          "página web, aprender a leer y escribir código, y dar tus primeros pasos " +
-          "como developer — todo gratis, en directo.\n\n" +
-          "Nos vemos pronto.",
+          "Gracias por registrarte. La escuela ya está en marcha y puedes " +
+          "empezar hoy mismo:\n\n" +
+          "La clase 1, grabada:\n" +
+          "  https://www.youtube.com/watch?v=T6g1Ynm8r3c\n\n" +
+          "El Discord de la comunidad (comparte tu página y pregunta lo que sea):\n" +
+          "  https://discord.gg/dmyrdCWR8a\n\n" +
+          "Las clases en vivo son martes y jueves a las 20:00, hora de Colombia, " +
+          "en https://twitch.tv/angelkurten — y todas quedan grabadas, así que " +
+          "entras cuando quieras.\n\n" +
+          "Te avisaré de cada clase. Nos vemos en el directo.",
       });
     }
   } catch {

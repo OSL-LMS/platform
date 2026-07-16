@@ -253,10 +253,18 @@ h1, h2, h3 {
   display: block;
 }
 
+.site-header nav {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+/* El padding vertical lleva el área de toque a ≥44px (WCAG 2.5.8). */
 .site-header a {
   color: var(--color-ink-muted);
   text-decoration: none;
   font-size: 15px;
+  padding: 11px 0;
 }
 
 .site-header a:hover {
@@ -271,6 +279,7 @@ h1, h2, h3 {
 
 /* Cada sección: un titular, un párrafo y como mucho una imagen. La marca es la
    contención — papel, tinta, una marca roja al margen. Ni rejillas ni tarjetas. */
+.home__thesis,
 .home__first,
 .home__teacher,
 .home__program,
@@ -279,6 +288,7 @@ h1, h2, h3 {
   border-top: 1px solid var(--color-rule);
 }
 
+.home__thesis h2,
 .home__first h2,
 .home__teacher h2,
 .home__program h2,

@@ -6,8 +6,13 @@ import { LESSONS } from "@/lib/lessons";
 // pueda verificar el dominio y para presentar la oferta. El tutor vive en /chat
 // (protegido por el middleware).
 //
-// La página vende la ESCUELA, no el tutor: el tutor es el tercer escalón del
-// embudo y este tráfico está en el primero. Ver `60 Negocio/Rediseño de la home.md`.
+// La página presenta la ESCUELA (ya en marcha, cohorte abierta continua) y da
+// dos acciones que no compiten: empezar gratis (CTA primario del hero) y
+// entrar/probar el tutor (header + tarjeta de precio).
+// Ver `60 Negocio/Home post-lanzamiento.md`.
+//
+// Regla: ninguna fecha fija en esta página — las fechas escritas a mano caducan
+// solas (la del 14 de julio sobrevivió dos días al estreno).
 //
 // Regla de código: identificadores en inglés; texto de UI en español.
 export default function HomePage() {
@@ -18,42 +23,88 @@ export default function HomePage() {
           {/* eslint-disable-next-line @next/next/no-img-element -- SVG con contornos, sin optimizar */}
           <img className="site-header__wordmark" src="/wordmark.svg" alt="Contextia" width={150} height={31} />
         </Link>
-        <Link href="/precios">Precios</Link>
+        <nav>
+          <Link href="/precios">Precios</Link>
+          <Link href="/signin">Entrar</Link>
+        </nav>
       </header>
 
       <main className="home">
         <section className="home__hero">
           <h1>
-            El martes 14 de julio publicas tu primera página en internet. Con tu
-            nombre.
+            Aprende a leer y dirigir el código que escribe la IA.
           </h1>
           <p className="home__lead">
-            Clase en vivo y gratis por Twitch, 20:00 hora de Colombia. Aquí no
-            aprendes a escribir el código que ya escribe la IA: aprendes a leerlo,
-            juzgarlo y dirigirlo — que es lo que hoy se contrata. Las clases, las
-            grabaciones y la comunidad son <strong>gratis</strong>, siempre.
+            Escuela online de programación, en español y desde cero. Clases en
+            vivo los martes y jueves a las 20:00 hora de Colombia — y todo queda
+            grabado, así que entras cuando quieras. Las clases, las grabaciones
+            y la comunidad son <strong>gratis</strong>, siempre.
           </p>
 
-          {/* Un solo CTA, y es el gratuito. La regla del CTA de `Formato del directo`
-              y la Escaleta de T0: el tutor de pago no se vende antes de que exista
-              la tarea que produce el atasco. */}
+          {/* Un solo CTA primario, y es el gratuito. El tutor de pago se ofrece
+              más abajo, después de demostrar el valor (regla del CTA de
+              `Formato del directo`). */}
           <div className="home__cta-row">
             <Link className="pricing__cta" href="/registro">
-              Avísame de la primera clase
+              Empieza gratis
             </Link>
           </div>
           <p className="home__cta-note">
-            Solo tu correo. Nada que pagar hoy: el tutor llega cuando te atasques.
+            Solo tu correo. Lo único de pago es el tutor, para cuando te atasques.
           </p>
 
           <p className="home__next">
-            Próxima clase: <strong>martes 14 de julio, 20:00 h</strong> (hora de
-            Colombia). En directo y gratis en{" "}
+            En directo, <strong>martes y jueves a las 20:00 h</strong> (hora de
+            Colombia) en{" "}
             <a href="https://twitch.tv/angelkurten" target="_blank" rel="noreferrer">
               twitch.tv/angelkurten
             </a>
-            .
+            . ¿Llegas con la temporada empezada? La clase 1 ya está{" "}
+            <a
+              href="https://www.youtube.com/watch?v=T6g1Ynm8r3c"
+              target="_blank"
+              rel="noreferrer"
+            >
+              grabada en YouTube
+            </a>
+            : mírala y alcanza al grupo.
           </p>
+        </section>
+
+        <section className="home__thesis">
+          <h2>Qué es Contextia</h2>
+          <p className="home__section-lead">
+            El trabajo de developer cambió: cerca del 84&nbsp;% usa IA a diario
+            y casi la mitad del código nuevo lo escribe una máquina. Lo que hoy
+            se contrata no es teclear más rápido — es saber leer, juzgar y
+            dirigir ese código.
+          </p>
+          <p className="home__section-lead">
+            Contextia te forma para ese listón desde cero: clases en directo
+            sin editar, proyectos que se publican de verdad y una regla que no
+            se negocia — aquí nunca entregas código que no entiendes. No
+            prometemos empleo: prometemos evidencia de lo que sabes hacer.
+          </p>
+        </section>
+
+        <section className="home__how">
+          <h2>Cómo funciona</h2>
+          <ol>
+            <li>
+              <strong>Mira las clases gratis</strong> — en vivo los martes y
+              jueves, y grabadas para siempre. Empiezas por la clase 1 y te
+              pones al día a tu ritmo.
+            </li>
+            <li>
+              <strong>Practica con la tarea</strong> — con las guías escritas
+              paso a paso y la comunidad.
+            </li>
+            <li>
+              <strong>El tutor te desatasca</strong> — cuando te trabas a solas,
+              a las once de la noche. Te guía para que la respuesta la encuentres
+              tú. Es lo único que se paga.
+            </li>
+          </ol>
         </section>
 
         <section className="home__first">
@@ -76,8 +127,32 @@ export default function HomePage() {
             Así te llega: con los huecos sin rellenar. El primer día la publicas
             tal cual, y durante la semana la haces tuya — el nombre, los colores,
             un botón que funciona. La plantilla es pública y está comentada en
-            español, línea a línea.
+            español, línea a línea. Puedes ver cómo se hace, paso a paso, en{" "}
+            <a
+              href="https://www.youtube.com/watch?v=T6g1Ynm8r3c"
+              target="_blank"
+              rel="noreferrer"
+            >
+              la grabación de la clase 1
+            </a>
+            .
           </p>
+        </section>
+
+        <section className="home__program">
+          <h2>El programa de la primera temporada</h2>
+          <p className="home__section-lead">
+            Siete clases. Al final tienes una página publicada, un repositorio
+            con historia y un botón que funciona.
+          </p>
+          <ol className="home__lessons">
+            {LESSONS.map((l) => (
+              <li key={l.id}>
+                <span className="home__lesson-id">{l.id}</span>
+                {l.title}
+              </li>
+            ))}
+          </ol>
         </section>
 
         <section className="home__teacher">
@@ -114,43 +189,56 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="home__how">
-          <h2>Cómo funciona</h2>
-          <ol>
-            <li>
-              <strong>Mira las clases gratis</strong> — en vivo los martes y
-              jueves, y grabadas para siempre. Desde cero.
-            </li>
-            <li>
-              <strong>Practica con la tarea</strong> — con las guías escritas
-              paso a paso y la comunidad.
-            </li>
-            <li>
-              <strong>El tutor te desatasca</strong> — cuando te trabas a solas,
-              a las once de la noche. Te guía para que la respuesta la encuentres
-              tú. Es lo único que se paga.
-            </li>
-          </ol>
-        </section>
-
-        <section className="home__program">
-          <h2>El programa de la primera temporada</h2>
-          <p className="home__section-lead">
-            Siete clases. Al final tienes una página publicada, un repositorio
-            con historia y un botón que funciona.
+        <section className="home__pricing">
+          <h2>Precio</h2>
+          <div className="pricing__cards">
+            <div className="pricing__card">
+              <h3>Gratis</h3>
+              <p className="pricing__price">$0</p>
+              <ul>
+                <li>Clases en vivo y grabaciones</li>
+                <li>Guías paso a paso</li>
+                <li>Comunidad</li>
+              </ul>
+              <Link className="pricing__cta" href="/registro">
+                Registrarme gratis
+              </Link>
+            </div>
+            <div className="pricing__card pricing__card--highlight">
+              <h3>Tutor</h3>
+              <p className="pricing__price">
+                $9,99 <span>USD / mes</span>
+              </p>
+              <p className="pricing__trial">
+                7 días de prueba gratis, sin tarjeta · precio fundador vitalicio ·
+                ajustado a tu país
+              </p>
+              <ul>
+                <li>El tutor de IA, 24/7</li>
+                <li>Te guía, no te da la respuesta</li>
+                <li>Recuerda tu progreso</li>
+                <li>Cancela cuando quieras</li>
+              </ul>
+              {/* El trial nace en /signin: 7 días, sin tarjeta. */}
+              <Link className="pricing__cta pricing__cta--ghost" href="/signin">
+                Probar el tutor 7 días
+              </Link>
+            </div>
+          </div>
+          <p className="home__detail">
+            ¿Más detalle? Mira la <Link href="/precios">página de precios</Link>.
           </p>
-          <ol className="home__lessons">
-            {LESSONS.map((l) => (
-              <li key={l.id}>
-                <span className="home__lesson-id">{l.id}</span>
-                {l.title}
-              </li>
-            ))}
-          </ol>
         </section>
 
         <section className="home__faq">
           <h2>Preguntas honestas</h2>
+
+          <h3>¿Puedo entrar ahora que ya empezó?</h3>
+          <p>
+            Sí. Todas las clases quedan grabadas: empiezas por la clase 1 en
+            YouTube, haces su tarea y te unes al siguiente directo. La temporada
+            acaba de arrancar — ponerte al día es cuestión de una tarde.
+          </p>
 
           <h3>¿Por qué pagar un tutor que no me da la respuesta?</h3>
           <p>
@@ -173,48 +261,6 @@ export default function HomePage() {
             cita fija dos veces por semana, una comunidad que empieza contigo y
             una tarea concreta cada clase. No prometemos empleo — prometemos
             evidencia de lo que sabes hacer.
-          </p>
-        </section>
-
-        <section className="home__pricing">
-          <h2>Precio</h2>
-          <div className="pricing__cards">
-            <div className="pricing__card">
-              <h3>Gratis</h3>
-              <p className="pricing__price">$0</p>
-              <ul>
-                <li>Clases en vivo y grabaciones</li>
-                <li>Guías paso a paso</li>
-                <li>Comunidad</li>
-              </ul>
-              <Link className="pricing__cta" href="/registro">
-                Registrarme gratis
-              </Link>
-            </div>
-            <div className="pricing__card pricing__card--highlight">
-              <h3>Tutor</h3>
-              <p className="pricing__price">
-                $9,99 <span>USD / mes</span>
-              </p>
-              <p className="pricing__trial">
-                7 días de prueba gratis, sin tarjeta · precio fundador · ajustado a
-                tu país
-              </p>
-              <ul>
-                <li>El tutor de IA, 24/7</li>
-                <li>Te guía, no te da la respuesta</li>
-                <li>Recuerda tu progreso</li>
-                <li>Cancela cuando quieras</li>
-              </ul>
-              {/* No "empezar la prueba" desde la home: el trial nace al primer login
-                  y se agotaría antes de que exista la tarea de L1 (21 de julio). */}
-              <Link className="pricing__cta pricing__cta--ghost" href="/precios">
-                Cómo funciona el tutor
-              </Link>
-            </div>
-          </div>
-          <p className="home__detail">
-            ¿Más detalle? Mira la <Link href="/precios">página de precios</Link>.
           </p>
         </section>
 
