@@ -46,11 +46,15 @@ export default async function SigninPage({
     >
       <div style={{ width: "100%", maxWidth: "26rem" }}>
         <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>
-          Entra a tu tutor
+          Entrar al tutor
         </h1>
-        <p style={{ color: "#555", marginBottom: "1.5rem" }}>
+        <p style={{ color: "#555", marginBottom: "0.75rem" }}>
           Escribe tu correo y te enviamos un enlace para entrar. Sin
           contraseñas.
+        </p>
+        <p style={{ color: "#555", marginBottom: "1.5rem", fontSize: "0.9rem" }}>
+          Entrar no gasta nada: tu prueba gratis de 7 días empieza cuando le
+          escribas tu primer mensaje al tutor.
         </p>
 
         {linkEnviado ? (

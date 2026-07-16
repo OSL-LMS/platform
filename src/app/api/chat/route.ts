@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { TUTOR_SYSTEM_PROMPT } from "@/lib/tutor-prompt";
 import { auth } from "@/auth";
-import { getAccess } from "@/lib/access";
+import { ensureTrial } from "@/lib/access";
 import {
   getOrCreateConversation,
   appendMessages,
@@ -24,8 +24,9 @@ export async function POST(req: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Frontera gratis/pago: sin trial vigente ni suscripción activa, no hay tutor.
-  const access = await getAccess(email);
+  // Frontera gratis/pago: el primer mensaje al tutor arranca el trial (7 días,
+  // sin tarjeta). Sin trial vigente ni suscripción activa, no hay tutor.
+  const access = await ensureTrial(email);
   if (!access.allowed) {
     return Response.json({ error: "Subscription required" }, { status: 403 });
   }

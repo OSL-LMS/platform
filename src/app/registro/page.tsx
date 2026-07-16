@@ -19,6 +19,11 @@ export default function RegistroPage() {
       <main className="registro">
         <h1>¡Estás dentro! 🎉</h1>
         <p className="registro__lead">{result.message}</p>
+        <p className="registro__lead">
+          Y cuando quieras probar el tutor, <a href="/signin">entra con este
+          mismo correo</a> — la prueba de 7 días empieza con tu primer mensaje,
+          no antes.
+        </p>
       </main>
     );
   }
@@ -28,7 +33,8 @@ export default function RegistroPage() {
       <h1>Aprende a programar, en directo y gratis</h1>
       <p className="registro__lead">
         Déjame tu correo y te aviso de cada clase. Sin costo: las clases, las
-        grabaciones y la comunidad son gratis.
+        grabaciones y la comunidad son gratis. Esto no crea ninguna cuenta ni
+        gasta tu prueba del tutor — es solo la lista de avisos.
       </p>
 
       <form className="registro__form" action={formAction}>

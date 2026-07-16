@@ -20,7 +20,8 @@ export default async function ChatPage() {
     return <ChatClient initialMessages={[]} />;
   }
 
-  // Frontera gratis/pago: arranca el trial en el primer acceso y evalúa acceso.
+  // Frontera gratis/pago: solo LEE el acceso — entrar a mirar no gasta la
+  // prueba; el trial arranca con el primer mensaje al tutor (/api/chat).
   const access = await getAccess(email);
   if (!access.allowed) {
     return (

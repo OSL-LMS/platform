@@ -17,7 +17,13 @@ import { DrizzleAdapter } from "@auth/drizzle-adapter";
 
 import { authConfig } from "@/auth.config";
 import { db } from "@/lib/db";
-import { users, accounts, sessions, verificationTokens } from "@/lib/schema";
+import {
+  users,
+  accounts,
+  sessions,
+  verificationTokens,
+  registrations,
+} from "@/lib/schema";
 
 // Aumentamos el tipo de la sesión para que `session.user.id` (string) sea parte
 // del contrato tipado. Sin esto, asignarlo en el callback rompería bajo `strict`.
@@ -55,6 +61,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       from: "tutor@angelkurten.com",
     }),
   ],
+
+  events: {
+    // Entrar también te registra: el correo es UNA identidad, y `registrations`
+    // el único activo de correos. Idempotente (onConflictDoNothing) y
+    // best-effort: un fallo aquí nunca debe romper el login.
+    async signIn({ user }) {
+      const email = user.email?.trim().toLowerCase();
+      if (!email) return;
+      try {
+        await db
+          .insert(registrations)
+          .values({ email, source: "signin" })
+          .onConflictDoNothing({ target: registrations.email });
+      } catch {
+        // Best-effort: el login sigue aunque el upsert falle.
+      }
+    },
+  },
 
   callbacks: {
     // En el sign-in inicial llega `user` (la fila creada por el adapter). Guardamos
