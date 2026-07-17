@@ -11,25 +11,17 @@ import { Pool } from "pg";
 import { Resend } from "resend";
 
 const FROM = "Ángel de Contextia <tutor@angelkurten.com>";
-const SUBJECT = "La clase 1 grabada, el Discord — y hoy la clase 2 (8 PM Colombia)";
-const TEXT = `Dos enlaces para que los guardes.
+const SUBJECT = "Empezamos en un rato: clase 2 en vivo, 8 PM Colombia";
+const TEXT = `La clase 2 empieza hoy a las 8 de la noche, hora de Colombia:
 
-La grabación de la clase 1, por si te la perdiste o quieres repasar
-un paso con calma:
+  https://twitch.tv/angelkurten
 
-  https://www.youtube.com/watch?v=T6g1Ynm8r3c
+Trae tu página de la clase 1 — vamos a leer su código, cambiarla,
+guardarla y ver el cambio publicado en internet.
 
-Y el Discord de la comunidad. Ahí compartimos las páginas, se
-resuelven dudas entre clases y aviso todo lo importante:
-
-  https://discord.gg/dmyrdCWR8a
-
-Entra hoy y preséntate: di quién eres y deja el enlace de tu página
-si ya la publicaste.
-
-Y una cosa más: hoy jueves hay clase 2, a las 8 de la noche, hora de
-Colombia, en https://twitch.tv/angelkurten. Trae tu página de la
-clase 1 — vamos a cambiarla, guardarla y ver el cambio publicado.
+Si no publicaste la tuya todavía, no pasa nada: ven igual, se
+entiende todo, y la clase 1 queda grabada para ponerte al día:
+https://www.youtube.com/watch?v=T6g1Ynm8r3c
 
 Nos vemos a las 8.
 Ángel
@@ -49,21 +41,17 @@ const HTML = `<!DOCTYPE html>
     <div style="font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:700;letter-spacing:-0.01em;margin-bottom:36px;">contexti<span style="color:#c0392b;">&#9679;</span></div>
 
     <div style="border-left:3px solid #c0392b;padding-left:20px;margin-bottom:32px;">
-      <div style="font-size:13px;letter-spacing:0.16em;text-transform:uppercase;color:#6b6560;font-weight:600;margin-bottom:12px;">Temporada 1 &middot; Avisos</div>
-      <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:32px;line-height:1.15;margin:0;font-weight:700;">Dos enlaces para que los guardes.</h1>
+      <div style="font-size:13px;letter-spacing:0.16em;text-transform:uppercase;color:#6b6560;font-weight:600;margin-bottom:12px;">Temporada 1 &middot; Clase 2 &middot; Hoy</div>
+      <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:32px;line-height:1.15;margin:0;font-weight:700;">Hoy leemos c&oacute;digo. A las 8.</h1>
     </div>
 
-    <p style="font-size:16px;line-height:1.6;margin:0 0 20px;">La <strong>grabaci&oacute;n de la clase 1</strong>, por si te la perdiste o quieres repasar un paso con calma:</p>
-
-    <p style="font-size:16px;line-height:1.6;margin:0 0 20px;"><a href="https://www.youtube.com/watch?v=T6g1Ynm8r3c" style="color:#c0392b;font-weight:600;">Ver la clase 1 en YouTube &rarr;</a></p>
-
-    <p style="font-size:16px;line-height:1.6;margin:0 0 20px;">Y el <strong>Discord de la comunidad</strong>. Ah&iacute; compartimos las p&aacute;ginas, se resuelven dudas entre clases y aviso todo lo importante. Entra hoy y pres&eacute;ntate: di qui&eacute;n eres y deja el enlace de tu p&aacute;gina si ya la publicaste.</p>
+    <p style="font-size:16px;line-height:1.6;margin:0 0 20px;">La clase 2 empieza hoy a las <strong>8 de la noche, hora de Colombia</strong>. Trae tu p&aacute;gina de la clase 1: vamos a leer su c&oacute;digo, cambiarla, guardarla y ver el cambio publicado en internet.</p>
 
     <p style="margin:32px 0;">
-      <a href="https://discord.gg/dmyrdCWR8a" style="display:inline-block;background-color:#c0392b;color:#f7f3ec;font-size:17px;font-weight:700;text-decoration:none;padding:14px 26px;border-radius:4px;">Entrar al Discord</a>
+      <a href="https://twitch.tv/angelkurten" style="display:inline-block;background-color:#c0392b;color:#f7f3ec;font-size:17px;font-weight:700;text-decoration:none;padding:14px 26px;border-radius:4px;">Ver la clase en vivo &middot; 8 PM Colombia</a>
     </p>
 
-    <p style="font-size:16px;line-height:1.6;margin:0 0 20px;">Y una cosa m&aacute;s: <strong>hoy jueves hay clase 2</strong>, a las 8 de la noche, hora de Colombia, en <a href="https://twitch.tv/angelkurten" style="color:#c0392b;font-weight:600;">twitch.tv/angelkurten</a>. Trae tu p&aacute;gina de la clase 1 &mdash; vamos a cambiarla, guardarla y ver el cambio publicado.</p>
+    <p style="font-size:16px;line-height:1.6;margin:0 0 20px;">Si no publicaste la tuya todav&iacute;a, no pasa nada: ven igual, se entiende todo, y <a href="https://www.youtube.com/watch?v=T6g1Ynm8r3c" style="color:#c0392b;font-weight:600;">la clase 1 queda grabada</a> para ponerte al d&iacute;a.</p>
 
     <p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Nos vemos a las 8.</p>
     <p style="font-family:Georgia,'Times New Roman',serif;font-size:18px;font-style:italic;margin:0 0 40px;">&Aacute;ngel</p>
