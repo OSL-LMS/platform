@@ -10,6 +10,7 @@ import { Paddle, Environment, EventName } from "@paddle/paddle-node-sdk";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { subscriptions } from "@/lib/schema";
+import { track } from "@/lib/analytics";
 
 const paddle = new Paddle(process.env.PADDLE_API_KEY ?? "", {
   environment:
@@ -58,6 +59,14 @@ export async function POST(req: Request) {
               updatedAt: new Date(),
             })
             .where(eq(subscriptions.email, email));
+
+          // Cierre del embudo. El evento sale del webhook y no del navegador
+          // porque el pago solo es real cuando Paddle lo confirma aquí.
+          track(
+            email,
+            canceled ? "subscription_canceled" : "subscription_activated",
+            { paddle_event: event.eventType }
+          );
         }
         break;
       }
@@ -69,6 +78,10 @@ export async function POST(req: Request) {
             .update(subscriptions)
             .set({ status: "canceled", updatedAt: new Date() })
             .where(eq(subscriptions.email, email));
+
+          track(email, "subscription_canceled", {
+            paddle_event: event.eventType,
+          });
         }
         break;
       }

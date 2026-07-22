@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { registrations } from "@/lib/schema";
+import { track } from "@/lib/analytics";
 import { Resend } from "resend";
 
 // Resultado que la server action devuelve al formulario (useActionState).
@@ -32,6 +33,11 @@ export async function register(
   } catch {
     return { ok: false, message: "Algo falló al registrarte. Reintenta en un momento." };
   }
+
+  // Boca del embudo. Se emite también si el correo ya estaba registrado
+  // (onConflictDoNothing): PostHog deduplica por distinct_id en el embudo, y un
+  // reintento del formulario es señal útil, no ruido.
+  track(email, "registered", { source: "web", lesson: currentLesson });
 
   // Correo de bienvenida (best-effort): si falla, el registro ya quedó guardado.
   try {
