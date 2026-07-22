@@ -8,6 +8,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { subscriptions } from "@/lib/schema";
+import { track } from "@/lib/analytics";
 
 const TRIAL_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -76,6 +77,12 @@ export async function ensureTrial(email: string): Promise<Access> {
       .onConflictDoNothing({ target: subscriptions.email })
       .returning();
     sub = inserted[0];
+
+    // Solo cuando ESTE request creó la fila. Si el insert chocó con la carrera
+    // de abajo, el evento ya lo emitió el request que ganó: un trial, un evento.
+    if (sub) {
+      track(email, "trial_started", { trial_days: TRIAL_DAYS });
+    }
 
     // Carrera improbable (dos primeros mensajes a la vez): si el insert chocó
     // por el unique de email, releemos la fila ya creada.

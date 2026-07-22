@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { TUTOR_SYSTEM_PROMPT } from "@/lib/tutor-prompt";
 import { auth } from "@/auth";
 import { ensureTrial } from "@/lib/access";
+import { track } from "@/lib/analytics";
 import {
   getOrCreateConversation,
   appendMessages,
@@ -42,6 +43,14 @@ export async function POST(req: Request) {
   if (!Array.isArray(messages) || messages.length === 0) {
     return Response.json({ error: "Missing messages" }, { status: 400 });
   }
+
+  // Paso intermedio del embudo. Se emite al ACEPTAR el mensaje, no al cerrar el
+  // stream: lo que medimos aquí es que el estudiante habló con el tutor, y eso
+  // ya pasó aunque Anthropic falle a mitad de la respuesta.
+  track(email, "tutor_message_sent", {
+    access_status: access.status,
+    lesson: body.lesson ?? null,
+  });
 
   // Conversación del usuario (la más reciente o una nueva vacía). La
   // necesitamos para saber a qué fila anexar al cerrar el stream.
