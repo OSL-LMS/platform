@@ -42,13 +42,13 @@ export const metadata: Metadata = {
     locale: "es_ES",
     url: "https://contextia.io",
     siteName: "Contextia",
-    title: "Aprende a leer y dirigir el código que escribe la IA",
+    title: "La escuela donde aprendes a dirigir el código, no solo a escribirlo",
     description:
       "Escuela online de programación, en español y desde cero. Clases en vivo y gratis por Twitch. No prometemos empleo: prometemos evidencia.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Aprende a leer y dirigir el código que escribe la IA",
+    title: "La escuela donde aprendes a dirigir el código, no solo a escribirlo",
     description:
       "Escuela online de programación, en español y desde cero. Clases en vivo y gratis por Twitch.",
   },
