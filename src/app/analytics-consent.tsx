@@ -22,6 +22,10 @@ async function startAnalytics() {
     // Los defaults fechados activan pageviews en cada navegación (App Router)
     // y pageleave — con eso salen visitas, profundidad y abandono por sección.
     defaults: "2025-05-24",
+    // El proyecto de PostHog tiene session replay activo, pero el banner y la
+    // política solo prometen medir páginas y profundidad. Grabar la pantalla
+    // excede ese consentimiento: apagado hasta que la política lo nombre.
+    disable_session_recording: true,
   });
 }
 
