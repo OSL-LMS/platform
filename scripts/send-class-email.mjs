@@ -11,18 +11,21 @@ import { Pool } from "pg";
 import { Resend } from "resend";
 
 const FROM = "Ángel de Contextia <tutor@angelkurten.com>";
-const SUBJECT = "Empezamos en un rato: clase 3 en vivo, 8 PM Colombia";
-const TEXT = `La clase 3 empieza hoy a las 8 de la noche, hora de Colombia:
+const SUBJECT = "Empezamos en un rato: clase 4 en vivo, 8 PM Colombia";
+const TEXT = `La clase 4 empieza hoy a las 8 de la noche, hora de Colombia:
 
   https://twitch.tv/angelkurten
 
-Hoy tu página deja de verse como la nuestra: colores, letras y
-espacios elegidos por ti. Dos horas antes dirías "es que yo no sé
-de diseño" — al terminar habrás diseñado.
+Hoy abrimos la pantalla negra: la terminal. Para mucha gente que
+empieza es el momento de "esto no es para mí" — vamos a desmontarlo
+en dos horas. No hay que saberse nada de memoria: es pedirle cosas al
+ordenador escribiéndolas en vez de pinchándolas.
 
-Trae tu página abierta. Si vienes por primera vez, ven igual: se
-entiende todo desde cero, y la clase 2 queda grabada para ponerte
-al día: https://youtu.be/rwN4Yqs4-6k
+Hoy no tocas tu página: preparas la herramienta con la que, a partir
+de mañana, dejará de depender del navegador. Ven con tu computador y
+nada más. Si vienes por primera vez, ven igual: se entiende todo desde
+cero, y la clase 3 queda grabada para ponerte al día:
+https://youtu.be/VMPn0C5MsOI
 
 Nos vemos a las 8.
 Ángel
@@ -42,17 +45,17 @@ const HTML = `<!DOCTYPE html>
     <div style="font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:700;letter-spacing:-0.01em;margin-bottom:36px;">contexti<span style="color:#c0392b;">&#9679;</span></div>
 
     <div style="border-left:3px solid #c0392b;padding-left:20px;margin-bottom:32px;">
-      <div style="font-size:13px;letter-spacing:0.16em;text-transform:uppercase;color:#6b6560;font-weight:600;margin-bottom:12px;">Temporada 1 &middot; Clase 3 &middot; Hoy</div>
-      <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:32px;line-height:1.15;margin:0;font-weight:700;">Que se vea como t&uacute; quieres. A las 8.</h1>
+      <div style="font-size:13px;letter-spacing:0.16em;text-transform:uppercase;color:#6b6560;font-weight:600;margin-bottom:12px;">Temporada 1 &middot; Clase 4 &middot; Hoy</div>
+      <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:32px;line-height:1.15;margin:0;font-weight:700;">La terminal, sin miedo. A las 8.</h1>
     </div>
 
-    <p style="font-size:16px;line-height:1.6;margin:0 0 20px;">La clase 3 empieza hoy a las <strong>8 de la noche, hora de Colombia</strong>. Hoy tu p&aacute;gina deja de verse como la nuestra: colores, letras y espacios elegidos por ti.</p>
+    <p style="font-size:16px;line-height:1.6;margin:0 0 20px;">La clase 4 empieza hoy a las <strong>8 de la noche, hora de Colombia</strong>. Hoy abrimos la pantalla negra: la terminal, el sitio donde le pides cosas al ordenador escribi&eacute;ndolas en vez de pinch&aacute;ndolas. Para mucha gente que empieza es el momento de <em>&laquo;esto no es para m&iacute;&raquo;</em> &mdash; vamos a desmontarlo en dos horas.</p>
 
     <p style="margin:32px 0;">
       <a href="https://twitch.tv/angelkurten" style="display:inline-block;background-color:#c0392b;color:#f7f3ec;font-size:17px;font-weight:700;text-decoration:none;padding:14px 26px;border-radius:4px;">Ver la clase en vivo &middot; 8 PM Colombia</a>
     </p>
 
-    <p style="font-size:16px;line-height:1.6;margin:0 0 20px;">Trae tu p&aacute;gina abierta. Dos horas antes dir&iacute;as <em>&laquo;es que yo no s&eacute; de dise&ntilde;o&raquo;</em> &mdash; al terminar habr&aacute;s dise&ntilde;ado. Si vienes por primera vez, ven igual: se entiende todo desde cero, y <a href="https://youtu.be/rwN4Yqs4-6k" style="color:#c0392b;font-weight:600;">la clase 2 queda grabada</a> para ponerte al d&iacute;a.</p>
+    <p style="font-size:16px;line-height:1.6;margin:0 0 20px;">Hoy no tocas tu p&aacute;gina: preparas la herramienta con la que, a partir de ma&ntilde;ana, dejar&aacute; de depender del navegador. Ven con tu computador y nada m&aacute;s. Si vienes por primera vez, ven igual: se entiende todo desde cero, y <a href="https://youtu.be/VMPn0C5MsOI" style="color:#c0392b;font-weight:600;">la clase 3 queda grabada</a> para ponerte al d&iacute;a.</p>
 
     <p style="font-size:16px;line-height:1.6;margin:0 0 8px;">Nos vemos a las 8.</p>
     <p style="font-family:Georgia,'Times New Roman',serif;font-size:18px;font-style:italic;margin:0 0 40px;">&Aacute;ngel</p>
