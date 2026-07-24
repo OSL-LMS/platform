@@ -1,5 +1,6 @@
 import Link from "next/link";
 import LegalFooter from "./legal-footer";
+import TrackingPixel from "./tracking-pixel";
 import VodEmbed from "./vod-embed";
 import { LESSONS } from "@/lib/lessons";
 import { PROGRAM } from "@/lib/program";
@@ -47,12 +48,13 @@ export default function HomePage() {
             <Link href="/precios">Precios</Link>
             <Link href="/signin">Entrar</Link>
           </nav>
-          <Link className="pricing__cta pricing__cta--compact" href="/registro">
+          <Link className="pricing__cta pricing__cta--compact" href="/registro?src=header">
             Empieza gratis
           </Link>
         </div>
       </header>
 
+      <TrackingPixel path="/" />
       <main className="home">
         {/* S1 · hero: hay clase */}
         <section className="home-hero">
@@ -67,7 +69,7 @@ export default function HomePage() {
                 nombre — y de ahí, un camino de cuatro etapas hasta construir y
                 defender software real en producción.
               </p>
-              <Link className="pricing__cta home-hero__cta" href="/registro">
+              <Link className="pricing__cta home-hero__cta" href="/registro?src=hero">
                 Empieza gratis — hoy publicas tu primera página
               </Link>
               <p className="agenda">
@@ -117,7 +119,7 @@ export default function HomePage() {
             </p>
             <VodEmbed videoId="T6g1Ynm8r3c" title="Clase 1 — Hoy publicas en internet" />
             <p className="home-demo__note">
-              ¿Prefieres verla con guía? <Link href="/registro">Déjanos tu correo</Link>{" "}
+              ¿Prefieres verla con guía? <Link href="/registro?src=demo">Déjanos tu correo</Link>{" "}
               y te llega la guía de la clase 1 y el calendario de la temporada.
             </p>
           </div>
@@ -505,7 +507,7 @@ toggle.addEventListener("click", () => {
                 ? `La próxima clase es este ${formatSessionDate(next).split(" ")[0]}. Puedes estar dentro.`
                 : "Las grabaciones te esperan. Puedes estar dentro."}
             </h2>
-            <Link className="pricing__cta home-closing__cta" href="/registro">
+            <Link className="pricing__cta home-closing__cta" href="/registro?src=cierre">
               Empieza gratis — hoy publicas tu primera página <span aria-hidden="true">●</span>
             </Link>
             <p className="home-closing__support">

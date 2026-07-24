@@ -1,14 +1,20 @@
 "use client";
 
-import { useActionState } from "react";
+import { Suspense, useActionState } from "react";
+import { useSearchParams } from "next/navigation";
 import { register, type RegisterResult } from "./actions";
 import { LESSONS } from "@/lib/lessons";
+import TrackingPixel from "../tracking-pixel";
 
 // Página pública de registro (parte ancha del embudo): captura correo + lección
 // para avisos de clase. Excluida del middleware de auth (es pública).
 //
 // Regla de código: identificadores en inglés; texto de UI en español.
-export default function RegistroPage() {
+// useSearchParams exige un límite de Suspense en páginas estáticas; el
+// formulario vive dentro y la página lo envuelve.
+function RegistroForm() {
+  // ¿De qué sección de la home vino este registro? (atribución del embudo)
+  const src = useSearchParams().get("src");
   const [result, formAction, pending] = useActionState<RegisterResult | null, FormData>(
     register,
     null
@@ -38,6 +44,7 @@ export default function RegistroPage() {
       </p>
 
       <form className="registro__form" action={formAction}>
+        <input type="hidden" name="src" value={src ?? ""} />
         <label>
           Tu correo
           <input
@@ -82,5 +89,16 @@ export default function RegistroPage() {
         </button>
       </form>
     </main>
+  );
+}
+
+export default function RegistroPage() {
+  return (
+    <>
+      <TrackingPixel path="/registro" />
+      <Suspense fallback={null}>
+        <RegistroForm />
+      </Suspense>
+    </>
   );
 }

@@ -24,7 +24,10 @@ const client = apiKey
 
 // El embudo entero, explícito. Un union en vez de `string` para que un typo no
 // invente un evento nuevo y parta el embudo en dos en el panel de PostHog.
+// `server_pageview` es el denominador (visitas a páginas públicas, anónimas,
+// vía el píxel /api/t): no es un escalón del embudo de usuario, es su base.
 export type TutorEvent =
+  | "server_pageview"
   | "registered"
   | "trial_started"
   | "tutor_message_sent"

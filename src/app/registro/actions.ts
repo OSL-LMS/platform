@@ -19,6 +19,11 @@ export async function register(
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const name = String(formData.get("name") ?? "").trim() || null;
   const currentLesson = String(formData.get("lesson") ?? "").trim() || null;
+  // Atribución: qué CTA de la home trajo el registro. Allowlist para que un
+  // valor manipulado no ensucie el panel.
+  const CTA_SOURCES = new Set(["header", "hero", "demo", "cierre"]);
+  const rawSrc = String(formData.get("src") ?? "").trim();
+  const ctaSource = CTA_SOURCES.has(rawSrc) ? rawSrc : null;
 
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { ok: false, message: "Pon un correo válido para avisarte de las clases." };
@@ -37,7 +42,7 @@ export async function register(
   // Boca del embudo. Se emite también si el correo ya estaba registrado
   // (onConflictDoNothing): PostHog deduplica por distinct_id en el embudo, y un
   // reintento del formulario es señal útil, no ruido.
-  track(email, "registered", { source: "web", lesson: currentLesson });
+  track(email, "registered", { source: "web", lesson: currentLesson, cta: ctaSource });
 
   // Correo de bienvenida (best-effort): si falla, el registro ya quedó guardado.
   try {
