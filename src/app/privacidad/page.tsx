@@ -80,6 +80,12 @@ export default function PrivacidadPage() {
         exactamente igual. Puedes cambiar de opinión borrando los datos de este
         sitio en tu navegador: el aviso volverá a aparecer.
       </p>
+      <p>
+        Aparte de las cookies, contamos las visitas a las páginas públicas de
+        forma anónima y sin cookies: un identificador técnico que rota cada día
+        y no permite identificarte ni seguirte entre días. Por eso no requiere
+        tu consentimiento — es el equivalente a un contador de visitas.
+      </p>
 
       <h2>7. Contacto</h2>
       <p>
