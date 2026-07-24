@@ -3,4 +3,6 @@
 allowBuilds:
   sharp: true
   esbuild: true
-  core-js: set this to true or false
+  # core-js (transitiva de posthog-js): su postinstall solo imprime el aviso
+  # de financiación; no ejecutarlo no afecta al runtime.
+  core-js: false
