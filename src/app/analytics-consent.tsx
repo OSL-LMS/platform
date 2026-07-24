@@ -11,7 +11,9 @@ import Link from "next/link";
 //
 // Regla de código: identificadores en inglés; texto de UI en español.
 
-const CONSENT_KEY = "analytics-consent";
+// v2 (24 jul): el alcance creció (session replay en páginas públicas), así que
+// la elección v1 no vale — el banner se vuelve a preguntar con el texto nuevo.
+const CONSENT_KEY = "analytics-consent-v2";
 
 async function startAnalytics() {
   const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
@@ -22,10 +24,13 @@ async function startAnalytics() {
     // Los defaults fechados activan pageviews en cada navegación (App Router)
     // y pageleave — con eso salen visitas, profundidad y abandono por sección.
     defaults: "2025-05-24",
-    // El proyecto de PostHog tiene session replay activo, pero el banner y la
-    // política solo prometen medir páginas y profundidad. Grabar la pantalla
-    // excede ese consentimiento: apagado hasta que la política lo nombre.
-    disable_session_recording: true,
+    // Session replay solo donde la política lo promete: páginas públicas, con
+    // lo escrito enmascarado. El chat del tutor no se graba nunca — una
+    // conversación de aprendizaje en pantalla es otra categoría de dato.
+    // ponytail: chequeo por pathname al iniciar; si algún día hay navegación
+    // cliente pública→/chat, pasar a stopSessionRecording() en el router.
+    disable_session_recording: window.location.pathname.startsWith("/chat"),
+    session_recording: { maskAllInputs: true },
   });
 }
 
@@ -52,7 +57,9 @@ export default function AnalyticsConsent() {
     <div className="consent" role="region" aria-label="Consentimiento de cookies">
       <p className="consent__text">
         ¿Podemos medir tu visita? Usamos cookies de análisis (PostHog) para saber
-        qué partes de la página funcionan. Si dices que no, no medimos nada en tu
+        qué partes de la página funcionan: qué visitas, hasta dónde llegas y una
+        grabación de cómo se usa la página (lo que escribes queda oculto y el
+        chat con el tutor no se graba). Si dices que no, no medimos nada en tu
         navegador — y todo funciona igual.{" "}
         <Link href="/privacidad">Más en la política de privacidad</Link>.
       </p>

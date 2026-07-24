@@ -71,11 +71,14 @@ export default function PrivacidadPage() {
       </p>
       <p>
         Además, <strong>solo si lo aceptas</strong> en el aviso de cookies,
-        usamos cookies de análisis de PostHog para medir cómo se usa el sitio
-        (qué páginas se visitan y hasta dónde se llega). Si las rechazas, no
-        medimos nada en tu navegador y todo funciona exactamente igual. Puedes
-        cambiar de opinión borrando los datos de este sitio en tu navegador: el
-        aviso volverá a aparecer.
+        usamos cookies de análisis de PostHog para medir cómo se usa el sitio:
+        qué páginas se visitan, hasta dónde se llega, y grabaciones de uso de
+        las páginas públicas (qué se muestra en pantalla y dónde se hace clic).
+        En esas grabaciones, lo que escribes en cualquier campo queda
+        enmascarado, y tus conversaciones con el tutor no se graban nunca. Si
+        rechazas las cookies, no medimos nada en tu navegador y todo funciona
+        exactamente igual. Puedes cambiar de opinión borrando los datos de este
+        sitio en tu navegador: el aviso volverá a aparecer.
       </p>
 
       <h2>7. Contacto</h2>
