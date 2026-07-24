@@ -3,3 +3,4 @@
 allowBuilds:
   sharp: true
   esbuild: true
+  core-js: set this to true or false

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import AnalyticsConsent from "./analytics-consent";
 import "./globals.css";
 
 // next/font descarga las fuentes en tiempo de build y las autoaloja: no hay
@@ -64,7 +65,10 @@ export default function RootLayout({
       lang="es"
       className={`${fraunces.variable} ${plexSans.variable} ${plexMono.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        <AnalyticsConsent />
+      </body>
     </html>
   );
 }

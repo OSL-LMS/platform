@@ -7,7 +7,7 @@ export default function PrivacidadPage() {
   return (
     <main className="legal">
       <h1>Política de privacidad</h1>
-      <p className="legal__updated">Última actualización: 13 de junio de 2026</p>
+      <p className="legal__updated">Última actualización: 24 de julio de 2026</p>
 
       <h2>1. Qué datos recopilamos</h2>
       <ul>
@@ -68,6 +68,14 @@ export default function PrivacidadPage() {
       <p>
         Usamos una cookie de sesión para mantenerte con la sesión iniciada tras
         usar tu enlace de acceso. Es necesaria para que el servicio funcione.
+      </p>
+      <p>
+        Además, <strong>solo si lo aceptas</strong> en el aviso de cookies,
+        usamos cookies de análisis de PostHog para medir cómo se usa el sitio
+        (qué páginas se visitan y hasta dónde se llega). Si las rechazas, no
+        medimos nada en tu navegador y todo funciona exactamente igual. Puedes
+        cambiar de opinión borrando los datos de este sitio en tu navegador: el
+        aviso volverá a aparecer.
       </p>
 
       <h2>7. Contacto</h2>

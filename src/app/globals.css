@@ -1510,3 +1510,74 @@ h1, h2, h3 {
   opacity: 0.5;
   cursor: default;
 }
+
+/* ====== Banner de consentimiento de cookies ====== */
+/* Sobrio y sin bermellón: el acento señala conversión, no burocracia. Los dos
+   botones pesan lo mismo — rechazar no se esconde (la honestidad es la marca). */
+.consent {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 20;
+  max-width: 560px;
+  margin: 0 auto;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-ink);
+  border-radius: 10px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 0 rgba(26, 24, 21, 0.18);
+}
+
+.consent__text {
+  margin: 0 0 14px;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+/* En tinta, no en bermellon: el acento de la pantalla es el CTA del hero. */
+.consent__text a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.consent__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.consent__btn {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1.5px solid var(--color-ink);
+  background: none;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.consent__btn:hover {
+  background: var(--color-highlight);
+}
+
+.consent__btn--accept {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.consent__btn--accept:hover {
+  background: #35312b;
+}
+
+@media (max-width: 480px) {
+  .consent__actions {
+    flex-direction: column-reverse;
+  }
+  .consent__btn {
+    width: 100%;
+  }
+}
