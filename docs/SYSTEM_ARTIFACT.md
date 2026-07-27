@@ -176,6 +176,7 @@ El estado derivado que consume la app es `Access = { allowed, status: "none" \| 
 |---|---|---|
 | Leer acceso sin efectos secundarios | `getAccess(email)` — `src/lib/access.ts` | — |
 | Crear el trial y devolver acceso | `ensureTrial(email)` — llamado **solo** desde `/api/chat` | — |
+| Escribir el estado que manda Paddle (upsert) | `setSubscriptionStatus(email, status, paddleSubscriptionId?)` — `src/lib/access.ts` | — |
 | Webhook de Paddle | `POST /api/paddle/webhook` | — |
 | Muro de pago con checkout de Paddle | `src/app/paywall.tsx` | — |
 | Payment link por defecto de Paddle (`?_ptxn=`) | `/checkout` (pública) | — |
@@ -187,12 +188,12 @@ El estado derivado que consume la app es `Access = { allowed, status: "none" \| 
 - El evento `trial_started` se emite **solo** cuando ese request creó la fila (`returning()` no vacío): un trial, un evento. La carrera de dos primeros mensajes simultáneos se resuelve releyendo la fila tras el `onConflictDoNothing`.
 - El webhook **debe leer el body crudo con `req.text()`**; `req.json()` rompe la verificación de firma del SDK de Paddle.
 - El webhook responde **200 incluso ante un error propio** (lo registra en consola) para que Paddle no reintente en bucle. Firma inválida o evento ausente sí devuelven 400.
-- El correo llega desde Paddle en `customData.email` del checkout y se pasa a minúsculas antes del `UPDATE`.
+- El correo llega desde Paddle en `customData.email` del checkout y se pasa a minúsculas antes de escribir.
+- **El webhook escribe con upsert, nunca con `UPDATE` a secas**: un pago puede llegar sin fila previa (`/checkout` es público y los flujos hospedados de Paddle no pasan por el tutor). `paddle_subscription_id` solo se sobrescribe si el evento trae uno.
 - El entorno de Paddle es `sandbox` salvo que `PADDLE_ENV`/`NEXT_PUBLIC_PADDLE_ENV` valga exactamente `production`.
 
 ### Open Debt
 
-- El webhook actualiza por `email`; si Paddle envía un evento cuyo `customData.email` no tiene fila en `subscriptions`, el `UPDATE` afecta 0 filas en silencio.
 - No hay reconciliación periódica contra la API de Paddle: si un webhook se pierde, el estado queda desincronizado hasta el siguiente evento.
 - `EventName.SubscriptionUpdated` deriva `canceled` de `data.status`; el resto de estados de Paddle (`paused`, `past_due`) caen a `active`.
 
@@ -308,6 +309,8 @@ Ninguno. No hay cron ni workers: todo ocurre en el ciclo de petición. Las tarea
 
 Sin framework de tests: tres scripts de `assert` que se ejecutan con `node scripts/<archivo>.ts` (Node 22+ ejecuta TypeScript directo) — `check-analytics.ts`, `check-format-message.ts`, `check-lessons.ts`. Los nombres de evento los garantiza `tsc --noEmit`.
 
+Los tres cubren módulos **sin dependencias locales**. Un check que importe algo de `src/lib/` que dependa de `db.ts` no arranca bajo Node: `db.ts` hace `import "./schema"` sin extensión, que Next resuelve y Node no (y `scripts/` está excluido de `tsconfig.json` justo por el problema simétrico de las extensiones `.ts`). Por eso la lógica que toca base de datos se verifica a mano contra Postgres, no con un check en el repositorio.
+
 ### Entorno y despliegue
 
 Next.js 15 (App Router) + React 19 + TypeScript, `pnpm@11.4.0`, desplegado en Railway con el plugin de Postgres (`DATABASE_URL` inyectada). Migraciones con `drizzle-kit` (`pnpm db:generate` / `pnpm db:migrate`); tres migraciones hasta hoy. Claves solo de servidor salvo las `NEXT_PUBLIC_*` de Paddle y PostHog, que deben existir **en tiempo de build**.
@@ -320,3 +323,4 @@ Next.js 15 (App Router) + React 19 + TypeScript, `pnpm@11.4.0`, desplegado en Ra
 |---|---|---|
 | 2026-07-27 | — | Bootstrap desde el código (commit `f2b948e`); ningún PRD lo precede. |
 | 2026-07-27 | — | Se elimina `user.current_lesson`, columna muerta (migración `20260727233650_medical_blackheart`). |
+| 2026-07-27 | — | El webhook de Paddle escribe con upsert (`setSubscriptionStatus`): un pago sin fila previa ya no se pierde. |

@@ -58,6 +58,29 @@ export async function getAccess(email: string): Promise<Access> {
   return evaluate(sub);
 }
 
+// Escribe el estado que manda Paddle. Es un UPSERT a propósito: el pago puede
+// llegar sin fila previa —/checkout es público y los flujos hospedados de Paddle
+// (dunning, portal del cliente) no pasan por el tutor—, y un UPDATE a secas
+// afectaría 0 filas en silencio, dejando a alguien pagando sin acceso.
+export async function setSubscriptionStatus(
+  email: string,
+  status: "active" | "canceled",
+  paddleSubscriptionId?: string | null
+): Promise<void> {
+  const changes = {
+    status,
+    updatedAt: new Date(),
+    // Un evento de cancelación no siempre trae el id: si no viene, no pisamos
+    // el que ya estuviera guardado.
+    ...(paddleSubscriptionId ? { paddleSubscriptionId } : {}),
+  };
+
+  await db
+    .insert(subscriptions)
+    .values({ email, ...changes })
+    .onConflictDoUpdate({ target: subscriptions.email, set: changes });
+}
+
 // Crea el trial si no existe (7 días, sin tarjeta) y devuelve el acceso.
 // Se llama SOLO desde /api/chat, al primer mensaje real al tutor.
 export async function ensureTrial(email: string): Promise<Access> {

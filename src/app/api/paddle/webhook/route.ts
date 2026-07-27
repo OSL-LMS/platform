@@ -7,9 +7,7 @@
 // Regla de código: identificadores en inglés, comentarios en español.
 
 import { Paddle, Environment, EventName } from "@paddle/paddle-node-sdk";
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { subscriptions } from "@/lib/schema";
+import { setSubscriptionStatus } from "@/lib/access";
 import { track } from "@/lib/analytics";
 
 const paddle = new Paddle(process.env.PADDLE_API_KEY ?? "", {
@@ -51,14 +49,11 @@ export async function POST(req: Request) {
         const email = emailFromCustomData(event.data);
         const canceled = data.status === "canceled";
         if (email) {
-          await db
-            .update(subscriptions)
-            .set({
-              status: canceled ? "canceled" : "active",
-              paddleSubscriptionId: data.id ?? null,
-              updatedAt: new Date(),
-            })
-            .where(eq(subscriptions.email, email));
+          await setSubscriptionStatus(
+            email,
+            canceled ? "canceled" : "active",
+            data.id
+          );
 
           // Cierre del embudo. El evento sale del webhook y no del navegador
           // porque el pago solo es real cuando Paddle lo confirma aquí.
@@ -74,10 +69,7 @@ export async function POST(req: Request) {
       case EventName.SubscriptionCanceled: {
         const email = emailFromCustomData(event.data);
         if (email) {
-          await db
-            .update(subscriptions)
-            .set({ status: "canceled", updatedAt: new Date() })
-            .where(eq(subscriptions.email, email));
+          await setSubscriptionStatus(email, "canceled");
 
           track(email, "subscription_canceled", {
             paddle_event: event.eventType,
