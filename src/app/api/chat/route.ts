@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { TUTOR_SYSTEM_PROMPT } from "@/lib/tutor-prompt";
+import { buildLessonContext } from "@/lib/lessons";
 import { auth } from "@/auth";
 import { ensureTrial } from "@/lib/access";
 import { track } from "@/lib/analytics";
@@ -60,21 +61,21 @@ export async function POST(req: Request) {
   // respuesta; es el que persistiremos junto con la contestación del tutor.
   const lastUserMessage = messages[messages.length - 1];
 
-  // Prompt estable (cacheado) + contexto de sesión como bloque aparte,
-  // igual que en el runner de evals: la lección que declara el estudiante.
+  // Prompt estable (cacheado) + temario como bloque aparte, igual que en el
+  // runner de evals. El prompt no sabe nada del curso: el módulo, las lecciones
+  // y los atascos típicos son dato y viajan aquí, así que una clase nueva es una
+  // fila en `lessons.ts` y no una versión del tutor.
   const system: Anthropic.TextBlockParam[] = [
     {
       type: "text",
       text: TUTOR_SYSTEM_PROMPT,
       cache_control: { type: "ephemeral" },
     },
-  ];
-  if (body.lesson) {
-    system.push({
+    {
       type: "text",
-      text: `Contexto de la sesión (inyectado por la plataforma): el estudiante va en la Lección ${body.lesson}.`,
-    });
-  }
+      text: buildLessonContext(body.lesson),
+    },
+  ];
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
