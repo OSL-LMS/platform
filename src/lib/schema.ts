@@ -25,8 +25,9 @@ import type { AdapterAccountType } from "next-auth/adapters";
 // 1. Tablas requeridas por el adapter de Auth.js v5
 // ---------------------------------------------------------------------------
 
-// Tabla de usuarios. Se añade `currentLesson` (la lección que declara el
-// estudiante, p. ej. "L3") sobre la forma base que pide el adapter.
+// Tabla de usuarios: la forma base que pide el adapter, sin columnas propias.
+// La lección del estudiante viaja por petición al tutor y se guarda en
+// `registrations`; aquí nunca se escribía.
 export const users = pgTable("user", {
   id: text("id")
     .primaryKey()
@@ -35,8 +36,6 @@ export const users = pgTable("user", {
   email: text("email").unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
-  // Columna propia de la app: el estudiante declara su lección a mano (v0).
-  currentLesson: text("current_lesson"),
 });
 
 // Cuentas vinculadas (OAuth / proveedores). Clave primaria compuesta

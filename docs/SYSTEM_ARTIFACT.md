@@ -118,7 +118,6 @@ Tablas con la forma canónica que exige el Drizzle adapter de Auth.js v5 — nom
 | email | text | unique |
 | emailVerified | timestamp | lo escribe el flujo de magic link |
 | name, image | text | del adapter |
-| current_lesson | text | columna propia — **hoy sin uso** (ver Open Debt) |
 
 #### `account`, `session`, `verificationToken`
 
@@ -143,7 +142,6 @@ Forma canónica del adapter. `account` y `session` tienen `onDelete: cascade` co
 
 ### Open Debt
 
-- `user.current_lesson` no se escribe ni se lee en ningún sitio: la lección viaja por petición en el body de `/api/chat`. Columna muerta.
 - Solo hay provider de correo; no existe OAuth pese a que la tabla `account` está creada.
 
 ---
@@ -312,7 +310,7 @@ Sin framework de tests: tres scripts de `assert` que se ejecutan con `node scrip
 
 ### Entorno y despliegue
 
-Next.js 15 (App Router) + React 19 + TypeScript, `pnpm@11.4.0`, desplegado en Railway con el plugin de Postgres (`DATABASE_URL` inyectada). Migraciones con `drizzle-kit` (`pnpm db:generate` / `pnpm db:migrate`); dos migraciones aplicadas hasta hoy. Claves solo de servidor salvo las `NEXT_PUBLIC_*` de Paddle y PostHog, que deben existir **en tiempo de build**.
+Next.js 15 (App Router) + React 19 + TypeScript, `pnpm@11.4.0`, desplegado en Railway con el plugin de Postgres (`DATABASE_URL` inyectada). Migraciones con `drizzle-kit` (`pnpm db:generate` / `pnpm db:migrate`); tres migraciones hasta hoy. Claves solo de servidor salvo las `NEXT_PUBLIC_*` de Paddle y PostHog, que deben existir **en tiempo de build**.
 
 ---
 
@@ -321,3 +319,4 @@ Next.js 15 (App Router) + React 19 + TypeScript, `pnpm@11.4.0`, desplegado en Ra
 | Date | PRD | Summary |
 |---|---|---|
 | 2026-07-27 | — | Bootstrap desde el código (commit `f2b948e`); ningún PRD lo precede. |
+| 2026-07-27 | — | Se elimina `user.current_lesson`, columna muerta (migración `20260727233650_medical_blackheart`). |
