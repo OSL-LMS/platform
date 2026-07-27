@@ -227,6 +227,7 @@ El chat socrático sobre Claude Sonnet 4.6 (`claude-sonnet-4-6`) con streaming. 
 | Prompt certificado v0.6 | `TUTOR_SYSTEM_PROMPT` — `src/lib/tutor-prompt.ts` | — |
 | Bloque de contexto de la lección | `buildLessonContext(lessonId)` — `src/lib/lessons.ts` | — |
 | Memoria de la conversación | `getOrCreateConversation`, `appendMessages`, `loadConversation` — `src/lib/conversations.ts` | — |
+| Ventana de contexto enviada al modelo | `trimWindow()`, `MAX_WINDOW_MESSAGES = 30` — `src/lib/window.ts` | — |
 | Render de código y énfasis del tutor | `formatMessage()` — `src/lib/format-message.ts` | — |
 | Pantalla del tutor (Server Component protegido) | `/chat` | — |
 
@@ -240,13 +241,15 @@ El chat socrático sobre Claude Sonnet 4.6 (`claude-sonnet-4-6`) con streaming. 
 - **Una conversación por usuario en v0**: siempre la más reciente por `updated_at`.
 - `appendMessages` concatena en SQL (`messages || $payload::jsonb`) para no pisar escrituras concurrentes.
 - La persistencia ocurre **después** de cerrar el stream y en su propio `try/catch`: no añade latencia y su fallo no rompe la respuesta ya entregada.
+- **Al modelo solo viaja la ventana reciente** (últimos 30 mensajes), y siempre empezando por un turno `user` — la API lo exige. El recorte no borra nada: `conversations.messages` conserva el hilo completo y la UI lo pinta entero.
 - `max_tokens: 1024`, `thinking: { type: "adaptive" }`.
 - La `ANTHROPIC_API_KEY` vive solo en el servidor (`new Anthropic()` en el route handler).
 
 ### Open Debt
 
 - No hay forma de empezar una conversación nueva ni de listar el historial: la UI siempre continúa la última.
-- El array `messages` que envía el cliente se pasa a Anthropic sin recorte; una conversación larga crece sin límite de ventana.
+- La ventana se mide en número de mensajes, no en tokens (marcado `ponytail:` en `window.ts`): 30 mensajes muy largos siguen siendo caros. El upgrade es un presupuesto de caracteres en el mismo módulo.
+- Lo que se envía al modelo sale del array que manda el **cliente**, no de la fila de `conversations`; el servidor no verifica que coincidan.
 - `format-message.ts` implementa un subconjunto de markdown a propósito (código, negrita, énfasis) — sin listas, enlaces ni encabezados.
 
 ---
@@ -307,9 +310,9 @@ Ninguno. No hay cron ni workers: todo ocurre en el ciclo de petición. Las tarea
 
 ### Comprobaciones
 
-Sin framework de tests: tres scripts de `assert` que se ejecutan con `node scripts/<archivo>.ts` (Node 22+ ejecuta TypeScript directo) — `check-analytics.ts`, `check-format-message.ts`, `check-lessons.ts`. Los nombres de evento los garantiza `tsc --noEmit`.
+Sin framework de tests: cuatro scripts de `assert` que se ejecutan con `node scripts/<archivo>.ts` (Node 22+ ejecuta TypeScript directo) — `check-analytics.ts`, `check-format-message.ts`, `check-lessons.ts`, `check-window.ts`. Los nombres de evento los garantiza `tsc --noEmit`.
 
-Los tres cubren módulos **sin dependencias locales**. Un check que importe algo de `src/lib/` que dependa de `db.ts` no arranca bajo Node: `db.ts` hace `import "./schema"` sin extensión, que Next resuelve y Node no (y `scripts/` está excluido de `tsconfig.json` justo por el problema simétrico de las extensiones `.ts`). Por eso la lógica que toca base de datos se verifica a mano contra Postgres, no con un check en el repositorio.
+Los cuatro cubren módulos **puros** (sin dependencias locales en runtime; `check-window.ts` importa el tipo de `schema.ts` con `import type`, que Node borra). Un check que importe algo de `src/lib/` que dependa de `db.ts` no arranca bajo Node: `db.ts` hace `import "./schema"` sin extensión, que Next resuelve y Node no (y `scripts/` está excluido de `tsconfig.json` justo por el problema simétrico de las extensiones `.ts`). Por eso la lógica que toca base de datos se verifica a mano contra Postgres, no con un check en el repositorio.
 
 ### Entorno y despliegue
 
@@ -324,3 +327,4 @@ Next.js 15 (App Router) + React 19 + TypeScript, `pnpm@11.4.0`, desplegado en Ra
 | 2026-07-27 | — | Bootstrap desde el código (commit `f2b948e`); ningún PRD lo precede. |
 | 2026-07-27 | — | Se elimina `user.current_lesson`, columna muerta (migración `20260727233650_medical_blackheart`). |
 | 2026-07-27 | — | El webhook de Paddle escribe con upsert (`setSubscriptionStatus`): un pago sin fila previa ya no se pierde. |
+| 2026-07-27 | — | Ventana de 30 mensajes hacia el modelo (`src/lib/window.ts`); el hilo completo se sigue guardando. |

@@ -4,6 +4,7 @@ import { buildLessonContext } from "@/lib/lessons";
 import { auth } from "@/auth";
 import { ensureTrial } from "@/lib/access";
 import { track } from "@/lib/analytics";
+import { trimWindow } from "@/lib/window";
 import {
   getOrCreateConversation,
   appendMessages,
@@ -89,7 +90,12 @@ export async function POST(req: Request) {
           max_tokens: 1024,
           thinking: { type: "adaptive" },
           system,
-          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          // Solo la ventana reciente viaja al modelo; el hilo completo se sigue
+          // guardando en `conversations`.
+          messages: trimWindow(messages).map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
         });
 
         for await (const event of tutorStream) {
