@@ -28,10 +28,15 @@ function errorMessageFor(status: number): string {
 function MessageBody({ content }: { content: string }) {
   return (
     <>
-      {formatMessage(content).map((chunk, i) =>
-        chunk.kind === "text" ? (
-          <span key={i}>{chunk.value}</span>
-        ) : chunk.block ? (
+      {formatMessage(content).map((chunk, i) => {
+        if (chunk.kind === "text") return <span key={i}>{chunk.value}</span>;
+        if (chunk.kind === "emphasis")
+          return chunk.strong ? (
+            <strong key={i}>{chunk.value}</strong>
+          ) : (
+            <em key={i}>{chunk.value}</em>
+          );
+        return chunk.block ? (
           <pre key={i} className="bubble__code">
             <code>{chunk.value}</code>
           </pre>
@@ -39,8 +44,8 @@ function MessageBody({ content }: { content: string }) {
           <code key={i} className="bubble__inline-code">
             {chunk.value}
           </code>
-        )
-      )}
+        );
+      })}
     </>
   );
 }

@@ -49,4 +49,27 @@ const reconstruido = formatMessage(original)
   .join("");
 assert.ok(reconstruido.includes("cd ..") && reconstruido.includes("ls -l") && reconstruido.includes("pwd"));
 
-console.log("OK: formatMessage pasa las 8 comprobaciones");
+
+// Énfasis con asteriscos: el tutor los usa y sin esto salían literales en la
+// burbuja ("*commit*", visto en producción el 27 jul).
+assert.deepEqual(formatMessage("haces un *commit*, y listo"), [
+  { kind: "text", value: "haces un " },
+  { kind: "emphasis", value: "commit", strong: false },
+  { kind: "text", value: ", y listo" },
+]);
+assert.deepEqual(formatMessage("**Nunca** te doy la solución"), [
+  { kind: "emphasis", value: "Nunca", strong: true },
+  { kind: "text", value: " te doy la solución" },
+]);
+
+// Dentro de código, un asterisco es un asterisco.
+assert.deepEqual(formatMessage("usa `git add *` ahí"), [
+  { kind: "text", value: "usa " },
+  { kind: "code", value: "git add *", block: false },
+  { kind: "text", value: " ahí" },
+]);
+
+// Un asterisco suelto no abre énfasis.
+assert.deepEqual(formatMessage("2 * 3 = 6"), [{ kind: "text", value: "2 * 3 = 6" }]);
+
+console.log("OK: formatMessage pasa las 12 comprobaciones");
