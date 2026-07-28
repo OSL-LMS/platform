@@ -298,7 +298,7 @@ const file = (nodes: CurriculumNodeInput[]) => ({ curriculum: "test", nodes });
     "\u0001https://evil.example.com/x",
     "\u001Fhttps://evil.example.com/x",
     "\u0000javascript:alert(1)",
-    "https://evil.example.com/x",
+    "\u000Bhttps://evil.example.com/x",
     // (c) `\` donde el navegador acepta `/`: relativo a protocolo igual que `//`.
     "/\\evil.example.com/x",
     "\\\\evil.example.com/x",
