@@ -25,6 +25,10 @@ packages:
 catalog:
   drizzle-orm: 0.45.2
   pg: 8.21.0
+  # Desde el paso 5 de PRD-003 §10 el único consumidor es `apps/api`: la raíz
+  # dejó de tener webhook de Paddle. El pin se queda porque es load-bearing —
+  # billing.controller.ts y billing.e2e-spec.ts razonan sobre ramas que 3.8.0
+  # hace inalcanzables.
   "@paddle/paddle-node-sdk": 3.8.0
   posthog-node: 5.46.0
 

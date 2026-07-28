@@ -2,11 +2,17 @@
 // Decisión y justificación: bóveda `30 Producto/Stack de la app del tutor.md`
 // (2026-07-22).
 //
-// Todo el embudo ocurre en el servidor (server action de registro, ensureTrial,
-// /api/chat, webhook de Paddle), así que se instrumenta con `posthog-node` y NO
-// con `posthog-js`: sin cookies, sin banner de consentimiento y sin que un
-// bloqueador de anuncios se coma el evento. El `distinct_id` es siempre el
-// correo — la misma llave que ya enlaza registrations, subscriptions y Paddle.
+// Todo el embudo ocurre en el servidor, así que se instrumenta con
+// `posthog-node` y NO con `posthog-js`: sin cookies, sin banner de
+// consentimiento y sin que un bloqueador de anuncios se coma el evento. El
+// `distinct_id` es siempre el correo — la misma llave que ya enlaza
+// registrations, subscriptions y Paddle.
+//
+// El union de abajo declara el embudo ENTERO, pero desde PRD-003 este módulo
+// solo emite tres de sus eventos: `server_pageview` (/api/t), `registered`
+// (server action de registro) y `tutor_message_sent` (/api/chat). Los otros
+// tres los emite `apps/api` con su propio cliente — `trial_started` al crear
+// el trial, y los dos de suscripción desde el webhook de Paddle.
 //
 // Regla de código: identificadores en inglés, comentarios en español.
 

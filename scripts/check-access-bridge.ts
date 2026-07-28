@@ -12,14 +12,24 @@
 import assert from "node:assert/strict";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 
-import {
+import { shouldEmitPageview } from "../src/lib/pixel.ts";
+
+// api-client.ts valida su configuración AL IMPORTARSE (goal 5; desde el paso 5
+// de §10 ya no hay flag que difiera esa validación), así que las dos variables
+// obligatorias tienen que existir ANTES del import. El import es dinámico
+// porque los estáticos se izan por encima de estas asignaciones. Los valores
+// son de relleno: cada fila que los usa de verdad los sobreescribe con
+// withEnv() o pasa la baseUrl como argumento.
+process.env.AUTH_COOKIE_NAME ??= "authjs.session-token";
+process.env.API_BASE_URL ??= "http://127.0.0.1:1";
+
+const {
   decideTutorTurn,
   fetchAccess,
   fetchAccessTrial,
   resolveClientConfig,
   resolveSessionCookie,
-} from "../src/lib/api-client.ts";
-import { shouldEmitPageview } from "../src/lib/pixel.ts";
+} = await import("../src/lib/api-client.ts");
 
 // ---------------------------------------------------------------------------
 // Utilidad: servidor HTTP local desechable para las filas 34 y 36.

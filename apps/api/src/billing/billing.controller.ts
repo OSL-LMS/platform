@@ -1,8 +1,10 @@
 // Webhook de Paddle: recibe eventos de suscripción y actualiza `subscriptions`.
 // Verifica la firma con el SDK oficial sobre el body CRUDO.
 //
-// Portado desde `src/app/api/paddle/webhook/route.ts` en PRD-003 fase 1. No
-// lleva sesión: se autentica por firma, así que no depende del puente de auth.
+// Portado en PRD-003 fase 1 desde el handler de Next que vivía en
+// `src/app/api/paddle/webhook/route.ts` (borrado en el paso 5 de § 10: este es
+// el único destino de Paddle desde entonces). No lleva sesión: se autentica por
+// firma, así que no depende del puente de auth.
 //
 // DOS TRAMPAS QUE EL CAMBIO DE FRAMEWORK INTRODUCE:
 //
