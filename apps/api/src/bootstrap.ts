@@ -21,6 +21,20 @@ export const BODY_LIMIT = "64kb";
 export function configureApp(app: NestExpressApplication): void {
   app.useBodyParser("json", { limit: BODY_LIMIT });
 
+  // Sin esto el límite de tasa NO acota a nadie en particular: detrás del proxy
+  // de Railway todas las peticiones llegan con la misma IP de origen, así que
+  // los 120/min de `throttle.ts` serían un cubo único para el mundo entero y el
+  // primer bucle automatizado dejaría a todos los estudiantes en 429. Es un
+  // fallo silencioso: en local, sin proxy, funciona bien.
+  //
+  // El `1` es el número de saltos de confianza, y es lo que lo hace resistente a
+  // suplantación: proxy-addr confía en el par del socket (el borde de Railway) y
+  // se queda con la ÚLTIMA entrada de `X-Forwarded-For`, que la añade ese mismo
+  // borde. Un cliente que mande su propio `X-Forwarded-For` solo consigue
+  // ensuciar entradas anteriores, que no se leen. Subirlo a 2 sí abriría esa
+  // puerta; no tocar sin un segundo proxy real delante.
+  app.set("trust proxy", 1);
+
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // Defensa en profundidad para DTOs FUTUROS, y se dice en este orden a
