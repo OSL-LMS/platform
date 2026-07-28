@@ -293,11 +293,11 @@ const file = (nodes: CurriculumNodeInput[]) => ({ curriculum: "test", nodes });
     "javascript: alert(1)",
     // (b) controles C0 iniciales: el parser los recorta, y `\s` de JavaScript
     //     NO cubre U+0000-U+0008 ni U+000E-U+001F, así que `^\s*` no llegaba
-    //     nunca al esquema. En JSON `"https://…"` es perfectamente legal.
-    " https://evil.example.com/x",
-    "https://evil.example.com/x",
-    "https://evil.example.com/x",
-    " javascript:alert(1)",
+    //     nunca al esquema. En JSON `"\u0001https://…"` es perfectamente legal.
+    "\u0000https://evil.example.com/x",
+    "\u0001https://evil.example.com/x",
+    "\u001Fhttps://evil.example.com/x",
+    "\u0000javascript:alert(1)",
     "https://evil.example.com/x",
     // (c) `\` donde el navegador acepta `/`: relativo a protocolo igual que `//`.
     "/\\evil.example.com/x",
@@ -306,6 +306,13 @@ const file = (nodes: CurriculumNodeInput[]) => ({ curriculum: "test", nodes });
   ]) {
     rejects(() => parseCurriculumFile(withUrl(evasion)), /esquema|allowlist/);
   }
+
+  // Un tabulador NO puede partir un host de la allowlist: al normalizarlo, el
+  // host real pasa a ser `github.com.evil.example.com`, que no está en ella.
+  rejects(() => parseCurriculumFile(withUrl("https://github.com\t.evil.example.com/x")), /allowlist/);
+  // Y el mismo tabulador dentro de un host que SÍ está en la allowlist se
+  // normaliza y se acepta: la normalización se aplica igual en los dos sentidos.
+  assert.equal(parseCurriculumFile(withUrl("//git\thub.com/x")).length, 1);
 
   // No-regresión: la prosa con dos puntos que motivó la desviación de §5.1
   // sigue pasando, y por la razón correcta (dos puntos + espacio, y ni `git` ni
