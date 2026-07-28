@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@paddle/paddle-node-sdk':
+      specifier: 3.8.0
+      version: 3.8.0
     drizzle-orm:
       specifier: 0.45.2
       version: 0.45.2
@@ -43,10 +46,10 @@ importers:
         version: 8.21.0
       posthog-js:
         specifier: ^1.407.2
-        version: 1.407.2(preact-render-to-string@6.5.11(preact@10.24.3))
+        version: 1.407.2(preact-render-to-string@6.5.11)
       posthog-node:
         specifier: 'catalog:'
-        version: 5.46.0
+        version: 5.46.0(rxjs@7.8.2)
       react:
         specifier: ^19.0.0
         version: 19.2.7
@@ -90,6 +93,9 @@ importers:
       '@nestjs/platform-express':
         specifier: ^11.1.28
         version: 11.1.28(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)
+      '@nestjs/throttler':
+        specifier: ^6.5.0
+        version: 6.5.0(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(reflect-metadata@0.2.2)
       '@paddle/paddle-node-sdk':
         specifier: 'catalog:'
         version: 3.8.0
@@ -1087,6 +1093,13 @@ packages:
         optional: true
       '@nestjs/platform-express':
         optional: true
+
+  '@nestjs/throttler@6.5.0':
+    resolution: {integrity: sha512-9j0ZRfH0QE1qyrj9JjIRDz5gQLPqq9yVC2nHsrosDVAfI5HHw08/aUAWx9DZLSdQf4HDkmhTTEGLrRFHENvchQ==}
+    peerDependencies:
+      '@nestjs/common': ^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0
+      '@nestjs/core': ^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0
+      reflect-metadata: ^0.1.13 || ^0.2.0
 
   '@next/env@15.5.19':
     resolution: {integrity: sha512-sWWluFvcv5v3Fxznmf2ZfjyoVQt/64oCnYqS90inQWGzMPK1VjvekPiz3OPHKmFT30EnHrjlbyaHLt3M0vWabw==}
@@ -3837,6 +3850,12 @@ snapshots:
     optionalDependencies:
       '@nestjs/platform-express': 11.1.28(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)
 
+  '@nestjs/throttler@6.5.0(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(reflect-metadata@0.2.2)':
+    dependencies:
+      '@nestjs/common': 11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.1.28(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.28)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      reflect-metadata: 0.2.2
+
   '@next/env@15.5.19': {}
 
   '@next/swc-darwin-arm64@15.5.19':
@@ -5146,7 +5165,7 @@ snapshots:
     dependencies:
       xtend: 4.0.2
 
-  posthog-js@1.407.2(preact-render-to-string@6.5.11(preact@10.24.3)):
+  posthog-js@1.407.2(preact-render-to-string@6.5.11):
     dependencies:
       '@posthog/browser-common': 0.2.1
       '@posthog/core': 1.45.1
@@ -5154,15 +5173,11 @@ snapshots:
       core-js: 3.49.0
       dompurify: 3.4.12
       fflate: 0.4.9
-      preact: 10.29.7(preact-render-to-string@6.5.11(preact@10.24.3))
+      preact: 10.29.7(preact-render-to-string@6.5.11)
       query-selector-shadow-dom: 1.0.1
       web-vitals: 5.3.0
     transitivePeerDependencies:
       - preact-render-to-string
-
-  posthog-node@5.46.0:
-    dependencies:
-      '@posthog/core': 1.45.1
 
   posthog-node@5.46.0(rxjs@7.8.2):
     dependencies:
@@ -5174,11 +5189,16 @@ snapshots:
     dependencies:
       preact: 10.24.3
 
+  preact-render-to-string@6.5.11(preact@10.29.7):
+    dependencies:
+      preact: 10.29.7(preact-render-to-string@6.5.11)
+    optional: true
+
   preact@10.24.3: {}
 
-  preact@10.29.7(preact-render-to-string@6.5.11(preact@10.24.3)):
+  preact@10.29.7(preact-render-to-string@6.5.11):
     optionalDependencies:
-      preact-render-to-string: 6.5.11(preact@10.24.3)
+      preact-render-to-string: 6.5.11(preact@10.29.7)
 
   proxy-addr@2.0.7:
     dependencies:

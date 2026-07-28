@@ -35,10 +35,13 @@ import {
 import { Environment, EventName, Paddle } from "@paddle/paddle-node-sdk";
 import type { Request } from "express";
 
+import { Throttle } from "@nestjs/throttler";
+
 import { AccessService } from "../access/access.service.ts";
 import { AnalyticsService } from "../analytics/analytics.service.ts";
 import { causeCode, errorName } from "../common/error-fields.ts";
 import { API_CONFIG, type ApiConfig } from "../config.ts";
+import { WEBHOOK_THROTTLE } from "../throttle.ts";
 
 // Extrae el correo de la app que enviamos como customData en el checkout. Es la
 // llave para enlazar la suscripción de Paddle con nuestra fila de subscriptions.
@@ -52,6 +55,9 @@ export function emailFromCustomData(data: unknown): string | null {
   return typeof email === "string" ? email.toLowerCase() : null;
 }
 
+// Cota propia, más alta que la global: Paddle entrega en ráfaga. Ver
+// `throttle.ts` para los números y su razón.
+@Throttle({ default: WEBHOOK_THROTTLE })
 @Controller("v1/webhooks/paddle")
 export class BillingController {
   private readonly logger = new Logger(BillingController.name);

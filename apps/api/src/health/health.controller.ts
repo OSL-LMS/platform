@@ -7,7 +7,12 @@
 // Regla de código: identificadores en inglés, comentarios en español.
 
 import { Controller, Get } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 
+// Sin límite de tasa: lo sondea Railway para decidir si el despliegue está sano,
+// y un 429 aquí se leería como servicio caído y provocaría justo el reinicio que
+// no hace falta. No consulta nada, así que no hay trabajo que proteger.
+@SkipThrottle()
 @Controller("health")
 export class HealthController {
   @Get()
