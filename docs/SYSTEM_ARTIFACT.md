@@ -379,6 +379,19 @@ Next.js 15 (App Router) + React 19 + TypeScript, `pnpm@11.4.0`, desplegado en Ra
 
 `output: "standalone"` no incluye `scripts/` ni `curriculum/`: el cargador **no** viaja en la imagen y se ejecuta desde la máquina del operador contra la `DATABASE_URL` del destino, igual que una migración.
 
+**Desde fuera de Railway, `DATABASE_URL` no sirve.** La variable que Railway inyecta en el servicio apunta a `postgres.railway.internal`, que solo resuelve dentro de su red: desde la máquina del operador da `ENOTFOUND`. Lo que hay que usar es `DATABASE_PUBLIC_URL`, del servicio **Postgres** (no del de la app), que sale por el proxy TCP. PRD-002 § 5.3 dice "contra la `DATABASE_URL` del entorno destino" sin distinguirlas.
+
+```sh
+export DATABASE_URL="$(railway variables --service Postgres --json \
+  | python3 -c 'import sys,json;print(json.load(sys.stdin)["DATABASE_PUBLIC_URL"])')"
+npx drizzle-kit migrate
+node scripts/load-curriculum.ts          # revisar el diff
+node scripts/load-curriculum.ts --write
+railway variables --service tutor-app --set CURRICULUM_SLUG=contextia
+```
+
+**Railway despliega solo al mergear a `main`, y eso invierte el orden de § 10.** El plan del PRD asume que el operador controla cuándo sale el código; aquí el merge lo saca antes de que nadie haya migrado. La consecuencia se vio en el primer despliegue de PRD-002: `/` y `/registro` devolvieron 500 hasta que se completaron los cuatro comandos de arriba — `/precios` y el resto del sitio siguieron sirviendo, porque no leen el currículo. **La secuencia segura es mergear y ejecutar los cuatro comandos seguidos**, asumiendo esa ventana; o parar el despliegue automático antes de mergear si la ventana no es aceptable. Poner `CURRICULUM_SLUG` es lo último a propósito: dispara el redespliegue y con él la recuperación.
+
 `/`, `/registro` y `/chat` son **dinámicas** (`ƒ`): las dos primeras llaman `connection()` para salir del prerender de build, donde `DATABASE_URL` no existe. Lo que evita que consulten Postgres en cada visita es el caché de `curriculum.ts` (TTL 600 s), no un export de página.
 
 ---
