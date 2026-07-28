@@ -457,6 +457,22 @@ for (const name of scenarios) await wipe(name);
     select condeferrable from pg_constraint where conname = 'curriculum_nodes_pkey'
   `);
   assert.equal(pk.rows[0].condeferrable, false, "una PK diferible rompe el upsert por id");
+
+  // El `COMMENT ON COLUMN` está en la misma categoría que el DEFERRABLE: parche
+  // a mano en el `.sql`, fuera de la instantánea de drizzle-kit. Si la fila 12d
+  // existe por atar las propiedades del esquema a algo comprobable, el aviso de
+  // que no hay aislamiento entre currículos merece la misma línea — es donde
+  // §8.5 lo pone para que lo lea quien nunca abrirá el PRD.
+  const comment = await db.execute(sql`
+    select col_description('curriculum_nodes'::regclass, attnum) as comment
+    from pg_attribute
+    where attrelid = 'curriculum_nodes'::regclass and attname = 'curriculum'
+  `);
+  assert.match(
+    String(comment.rows[0]?.comment ?? ""),
+    /aislamiento/i,
+    "el comentario de la columna `curriculum` desapareció"
+  );
 }
 
 // ---------------------------------------------------------------------------

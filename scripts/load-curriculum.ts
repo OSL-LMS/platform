@@ -15,7 +15,11 @@ import { isDeepStrictEqual } from "node:util";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../src/lib/db.ts";
 import { curriculumNodes } from "../src/lib/schema.ts";
-import { parseCurriculumFile, type FlatNode } from "../src/lib/curriculum-file.ts";
+import {
+  parseCurriculumFile,
+  SLUG_PATTERN,
+  type FlatNode,
+} from "../src/lib/curriculum-file.ts";
 
 const DEFAULT_FILE = "curriculum/contextia.json";
 
@@ -41,8 +45,12 @@ function parseArgs(argv: string[]): Options {
     if (arg === "--write") options.write = true;
     else if (arg === "--allow-deletes") options.allowDeletes = true;
     else if (arg === "--allow-identity-change") {
-      // Consume todos los slugs que sigan, hasta la próxima bandera.
-      while (i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
+      // Consume los slugs que sigan, y para en cuanto algo NO parece un slug.
+      // Cortar solo en la próxima bandera se tragaba el argumento posicional:
+      // `--allow-identity-change L1 curriculum/otro.json` registraba la ruta
+      // como slug autorizado y cargaba en silencio el archivo por defecto.
+      // `SLUG_PATTERN` excluye por construcción cualquier ruta (lleva `/` o `.`).
+      while (i + 1 < argv.length && SLUG_PATTERN.test(argv[i + 1])) {
         options.allowIdentityChange.add(argv[++i]);
       }
     } else if (arg.startsWith("--")) {
