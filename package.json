@@ -11,19 +11,21 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "curriculum:load": "node scripts/load-curriculum.ts",
-    "curriculum:check": "node scripts/check-curriculum-golden.ts && node scripts/check-curriculum.ts && node scripts/check-lessons.ts && node scripts/check-schedule.ts && node scripts/check-curriculum-identity.ts && node scripts/check-curriculum-load.ts"
+    "curriculum:check": "node scripts/check-curriculum-golden.ts && node scripts/check-curriculum.ts && node scripts/check-lessons.ts && node scripts/check-schedule.ts && node scripts/check-curriculum-identity.ts && node scripts/check-curriculum-load.ts",
+    "test": "pnpm --filter api test",
+    "check:access": "node scripts/check-access-bridge.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.0",
     "@auth/drizzle-adapter": "^1.11.2",
     "@paddle/paddle-js": "^1.6.4",
-    "@paddle/paddle-node-sdk": "^3.8.0",
-    "drizzle-orm": "^0.45.2",
+    "@paddle/paddle-node-sdk": "catalog:",
+    "drizzle-orm": "catalog:",
     "next": "^15.5.0",
     "next-auth": "5.0.0-beta.31",
-    "pg": "^8.21.0",
+    "pg": "catalog:",
     "posthog-js": "^1.407.2",
-    "posthog-node": "^5.46.0",
+    "posthog-node": "catalog:",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "resend": "^6.12.4"

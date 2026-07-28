@@ -1,0 +1,26 @@
+{
+  "//": "PRD-003 §Design Decisions fija esta configuración; NO la 'simplifiques'. Tres cosas son load-bearing: (1) `allowImportingTsExtensions` Y `rewriteRelativeImportExtensions` van JUNTOS — el primero solo por su cuenta da TS5096 en cuanto hay emit, y apps/api tiene que emitir porque NestJS necesita `emitDecoratorMetadata`; (2) NO hay `rootDir` — ponerlo en './src' da TS6059 sobre el import cruzado a ../../src/lib/schema.ts, así que el rootDir inferido es la raíz del repositorio y el árbol emitido es dist/apps/api/src/main.js más dist/src/lib/schema.js; (3) apps/api/package.json NO declara \"type\": \"module\" — con ESM esto compila limpio y revienta al arrancar con SyntaxError sobre schema.js, porque tsc decide el formato por el package.json más cercano al FUENTE y Node por el más cercano a la SALIDA. `module: nodenext` es lo que permite importar @auth/core (ESM puro) desde un apps/api CommonJS vía require(esm), y de ahí el `engines: node >=22.12` del package.json.",
+
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "outDir": "./dist",
+
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "src/**/*.spec.ts"]
+}

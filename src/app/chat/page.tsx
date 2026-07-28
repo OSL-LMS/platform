@@ -6,7 +6,8 @@
 
 import { auth } from "@/auth";
 import { loadConversation } from "@/lib/conversations";
-import { getAccess } from "@/lib/access";
+import { getAccess, type Access } from "@/lib/access";
+import { fetchAccess, readSessionToken, resolveClientConfig } from "@/lib/api-client";
 import { curriculumSlug, getLessons, toLessonOptions } from "@/lib/curriculum";
 import ChatClient from "../chat-client";
 import Paywall from "../paywall";
@@ -23,7 +24,7 @@ export default async function ChatPage() {
 
   // Frontera gratis/pago: solo LEE el acceso — entrar a mirar no gasta la
   // prueba; el trial arranca con el primer mensaje al tutor (/api/chat).
-  const access = await getAccess(email);
+  const access = await resolveAccess(email);
   if (!access.allowed) {
     return (
       <Paywall
@@ -33,6 +34,10 @@ export default async function ChatPage() {
     );
   }
 
+  // Estas dos lecturas son de la Postgres de Next y no dependen de apps/api:
+  // corren SIEMPRE que haya acceso, incluido el camino degradado de abajo. No
+  // saltarlas es lo que evita dejar al estudiante sin historial ni selector
+  // de lección cuando apps/api no responde (PRD-003 §5.3).
   const initialMessages = await loadConversation(userId);
   const lessons = toLessonOptions(await getLessons(curriculumSlug()));
   return (
@@ -42,4 +47,22 @@ export default async function ChatPage() {
       lessons={lessons}
     />
   );
+}
+
+// PRD-003 §5.3: con ACCESS_VIA_API apagado (por defecto), camino de hoy sin
+// cambios. Encendido, un `{error:true}` del puente (timeout, 5xx, desajuste de
+// salt…) se trata como acceso permitido sin trial confirmado: el estudiante
+// sigue viendo ChatClient —nunca Paywall, nunca redirect a /signin, un 401 de
+// apps/api no es "sin sesión"— pero sin inventar días de prueba que apps/api
+// no pudo confirmar.
+async function resolveAccess(email: string): Promise<Access> {
+  if (process.env.ACCESS_VIA_API !== "true") {
+    return getAccess(email);
+  }
+  const config = resolveClientConfig();
+  const token = await readSessionToken();
+  const result = await fetchAccess(token, config.apiBaseUrl, config.accessTimeoutMs);
+  return "error" in result
+    ? { allowed: true, status: "none", trialDaysLeft: null }
+    : result;
 }

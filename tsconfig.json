@@ -19,5 +19,6 @@
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "//": "scripts/ son utilidades que ejecuta Node directamente. `allowImportingTsExtensions` (exige noEmit) permite el `import './schema.ts'` que Node necesita y Next resuelve igual — sin él ningún check puede importar nada que dependa de db.ts (PRD-002 §9). scripts/ sigue fuera del bundle.",
-  "exclude": ["node_modules", "scripts"]
+  "//apps": "apps/ tiene su propio tsconfig y su propio compilador (PRD-003 §Design Decisions). Sin excluirlo, el `**/*.ts` de arriba se traga apps/api/src y `next build` falla con TS1206/TS1241 sobre los decoradores de NestJS, que este tsconfig no habilita — y no puede habilitarlos sin cambiar el build de Next.",
+  "exclude": ["node_modules", "scripts", "apps"]
 }

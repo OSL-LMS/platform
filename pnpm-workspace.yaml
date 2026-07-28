@@ -1,3 +1,33 @@
+# Espacio de trabajo de pnpm. La raíz sigue siendo la app Next; `apps/*` añade
+# los paquetes de la migración a NestJS (ADR-001, PRD-003 fase 1).
+#
+# AVISO (PRD-003 §10 paso 1): declarar `packages:` NO es inerte para el servicio
+# Next. Cambia el grafo de instalación de la raíz —que *es* el servicio Next en
+# producción—, así que `pnpm install` pasa a instalar también NestJS, Vitest y
+# @swc/core, con su coste de tiempo y de tamaño de build. Railway despliega al
+# mergear a `main`: sale a producción cuando se mergea, no cuando el operador lo
+# decida. Aísla el build del servicio Next (`pnpm install --filter`) o acepta el
+# crecimiento a sabiendas.
+packages:
+  - "apps/*"
+
+# Versiones compartidas entre la raíz y `apps/api`. `drizzle-orm` y `pg` tienen
+# que resolver EXACTAMENTE a la misma versión en los dos paquetes: con dos
+# resoluciones distintas se cargan dos instancias de drizzle-orm y
+# `drizzle(pool, { schema })` deja de reconocer las tablas (PRD-003 §Design
+# Decisions). El catálogo es el sitio donde eso queda escrito una sola vez.
+#
+# LOS DOS LADOS usan `catalog:` — la raíz también. Con la raíz en `^0.45.2` esto
+# funcionaba solo por deduplicación del lockfile: en cuanto saliera un
+# `drizzle-orm@0.45.3`, el caret de la raíz lo aceptaría, el pin de aquí no, y
+# aparecerían las dos instancias sin que nadie tocara `apps/api`. Un catálogo que
+# solo obedece una mitad del workspace no es un pin, es una nota.
+catalog:
+  drizzle-orm: 0.45.2
+  pg: 8.21.0
+  "@paddle/paddle-node-sdk": 3.8.0
+  posthog-node: 5.46.0
+
 # sharp es dependencia transitiva de Next (optimización de imágenes); no la usamos,
 # pero pnpm 11 bloquea su script de build salvo que se apruebe aquí.
 allowBuilds:
@@ -6,3 +36,8 @@ allowBuilds:
   # core-js (transitiva de posthog-js): su postinstall solo imprime el aviso
   # de financiación; no ejecutarlo no afecta al runtime.
   core-js: false
+  # @swc/core es el transformador de los tests de apps/api (unplugin-swc). Su
+  # postinstall resuelve el binario nativo de la plataforma; sin aprobarlo,
+  # Vitest no puede transformar los decoradores y la DI de NestJS no resuelve
+  # nada (PRD-003 §9, fila 2).
+  '@swc/core': true
