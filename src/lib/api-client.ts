@@ -85,6 +85,24 @@ export function resolveClientConfig(): ClientConfig {
   };
 }
 
+// Goal 5, versión que sí cumple sin coste: con el flag apagado (§10 paso 2)
+// esta línea no valida nada, así que las variables nuevas siguen sin ser
+// necesarias y el paso conserva su "cero cambio de comportamiento". Con el
+// flag encendido, la validación corre AL CARGAR EL MÓDULO, no en la primera
+// petición: encender ACCESS_VIA_API en Railway reinicia el servicio, así que
+// "al arrancar" y "al encender el flag" son el mismo instante. Si falta una
+// variable, el proceso no llega a levantar y Railway conserva el despliegue
+// anterior — en vez de que resolveClientConfig() lance DENTRO del render de
+// /chat, donde tumbaría error.tsx para TODOS los estudiantes (rompe el goal 8:
+// la política de degradación de fetchAccess no atrapa esto, porque
+// {error:true} solo cubre lo que pasa dentro de fetchAccess/fetchAccessTrial).
+//
+// Aviso: `next build` importa los módulos de página al recolectar datos de
+// cada ruta. Si el build corre con ACCESS_VIA_API=true y sin API_BASE_URL (o
+// AUTH_COOKIE_NAME), FALLARÁ AQUÍ, con el mismo mensaje de arriba — es
+// correcto (falla todavía más temprano), no un fallo de build misterioso.
+if (process.env.ACCESS_VIA_API === "true") resolveClientConfig();
+
 // Resuelve la cookie de sesión a partir de un mapa nombre→valor ya extraído
 // (así es pura y testable sin next/headers — §9 fila 35). Prueba el prefijo
 // `__Secure-` primero.
@@ -168,17 +186,11 @@ function isAccess(body: unknown): body is Access {
 async function requestAccess(
   token: string | { error: true },
   baseUrl: string,
+  timeoutMs: number,
   path: "/v1/access" | "/v1/access/trial",
   method: "GET" | "POST"
 ): Promise<ApiResult> {
   if (typeof token !== "string") return { error: true };
-
-  const rawTimeout = process.env.ACCESS_TIMEOUT_MS;
-  const parsedTimeout = rawTimeout ? Number(rawTimeout) : NaN;
-  const timeoutMs =
-    Number.isFinite(parsedTimeout) && parsedTimeout > 0
-      ? parsedTimeout
-      : DEFAULT_ACCESS_TIMEOUT_MS;
 
   const base = baseUrl.replace(/\/+$/, "");
 
@@ -212,20 +224,30 @@ async function requestAccess(
 
 // GET /v1/access — solo lee (call site: src/app/chat/page.tsx). Nunca crea
 // trial.
+//
+// `timeoutMs` es obligatorio y viaja como argumento — NUNCA se relee
+// `process.env.ACCESS_TIMEOUT_MS` aquí dentro. Antes había dos lecturas
+// independientes (esta y la de resolveClientConfig()): coincidían hoy, pero
+// el campo que la fila 38 de §9 prueba no era el que el fetch usaba, así que
+// un cambio futuro al defecto de resolveClientConfig() se habría quedado sin
+// probar en la mitad que de verdad importa. `resolveClientConfig()` es la
+// única fuente: los call sites ya tienen `config` delante.
 export function fetchAccess(
   token: string | { error: true },
-  baseUrl: string
+  baseUrl: string,
+  timeoutMs: number
 ): Promise<ApiResult> {
-  return requestAccess(token, baseUrl, "/v1/access", "GET");
+  return requestAccess(token, baseUrl, timeoutMs, "/v1/access", "GET");
 }
 
 // POST /v1/access/trial — crea el trial si no existe (call site:
 // src/app/api/chat/route.ts).
 export function fetchAccessTrial(
   token: string | { error: true },
-  baseUrl: string
+  baseUrl: string,
+  timeoutMs: number
 ): Promise<ApiResult> {
-  return requestAccess(token, baseUrl, "/v1/access/trial", "POST");
+  return requestAccess(token, baseUrl, timeoutMs, "/v1/access/trial", "POST");
 }
 
 export type TutorTurnDecision =

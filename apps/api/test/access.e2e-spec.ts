@@ -239,6 +239,14 @@ describe("acceso con Postgres inalcanzable", () => {
 
     const trial = await fetch(`${running.baseUrl}/v1/access/trial`, { method: "POST" });
     expect(trial.status).toBe(401);
+
+    // Y el cuerpo que ve el cliente no publica el código de razón: los cuatro
+    // códigos de §8 son para los logs, no para el llamante. Aquí se mira el
+    // cuerpo REAL del 401 tal como sale por el cable, no la excepción.
+    const body = await response.text();
+    for (const reason of ["missing_header", "malformed", "decode_failed", "missing_claims"]) {
+      expect(body).not.toContain(reason);
+    }
   });
 
   // -------------------------------------------------------------------------

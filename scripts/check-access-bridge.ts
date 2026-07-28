@@ -161,46 +161,49 @@ withEnv(
 // distinción que esta fila existe para probar.
 // ---------------------------------------------------------------------------
 await (async () => {
-  process.env.ACCESS_TIMEOUT_MS = "200";
-  try {
-    await withServer(
-      () => {
-        // A propósito: ni res.write() ni res.end(). El socket queda abierto.
-      },
-      async (baseUrl) => {
-        const start = Date.now();
-        const result = await fetchAccess("token-valido", baseUrl);
-        const elapsed = Date.now() - start;
-        assert.deepEqual(result, { error: true });
-        assert.ok(elapsed < 1000, `debía degradar cerca de los 200ms, tardó ${elapsed}ms`);
-        assert.ok(
-          elapsed >= 150,
-          `no debía resolver antes del timeout (tardó ${elapsed}ms) — sería indicio de conexión rechazada, no de timeout real`
-        );
-      }
-    );
+  // `timeoutMs` viaja como argumento (ya no se relee ACCESS_TIMEOUT_MS dentro
+  // de fetchAccess): fijamos uno corto aquí mismo, sin tocar process.env.
+  const TEST_TIMEOUT_MS = 200;
 
-    // Contraste: puerto cerrado (nadie escucha) → conexión rechazada de
-    // inmediato, muy por debajo del timeout.
-    const closedPort = await new Promise<number>((resolve) => {
-      const probe = http.createServer();
-      probe.listen(0, "127.0.0.1", () => {
-        const address = probe.address();
-        const port = typeof address === "object" && address ? address.port : 0;
-        probe.close(() => resolve(port));
-      });
+  await withServer(
+    () => {
+      // A propósito: ni res.write() ni res.end(). El socket queda abierto.
+    },
+    async (baseUrl) => {
+      const start = Date.now();
+      const result = await fetchAccess("token-valido", baseUrl, TEST_TIMEOUT_MS);
+      const elapsed = Date.now() - start;
+      assert.deepEqual(result, { error: true });
+      assert.ok(elapsed < 1000, `debía degradar cerca de los 200ms, tardó ${elapsed}ms`);
+      assert.ok(
+        elapsed >= 150,
+        `no debía resolver antes del timeout (tardó ${elapsed}ms) — sería indicio de conexión rechazada, no de timeout real`
+      );
+    }
+  );
+
+  // Contraste: puerto cerrado (nadie escucha) → conexión rechazada de
+  // inmediato, muy por debajo del timeout.
+  const closedPort = await new Promise<number>((resolve) => {
+    const probe = http.createServer();
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      probe.close(() => resolve(port));
     });
-    const start = Date.now();
-    const refused = await fetchAccess("token-valido", `http://127.0.0.1:${closedPort}`);
-    const elapsed = Date.now() - start;
-    assert.deepEqual(refused, { error: true });
-    assert.ok(
-      elapsed < 150,
-      `un servicio apagado debía resolver muy por debajo del timeout, tardó ${elapsed}ms`
-    );
-  } finally {
-    delete process.env.ACCESS_TIMEOUT_MS;
-  }
+  });
+  const start = Date.now();
+  const refused = await fetchAccess(
+    "token-valido",
+    `http://127.0.0.1:${closedPort}`,
+    TEST_TIMEOUT_MS
+  );
+  const elapsed = Date.now() - start;
+  assert.deepEqual(refused, { error: true });
+  assert.ok(
+    elapsed < 150,
+    `un servicio apagado debía resolver muy por debajo del timeout, tardó ${elapsed}ms`
+  );
 })();
 
 // ---------------------------------------------------------------------------
@@ -211,9 +214,16 @@ await (async () => {
 // ---------------------------------------------------------------------------
 await (async () => {
   const validAccess = { allowed: true, status: "trial", trialDaysLeft: 3 } as const;
+  const TEST_TIMEOUT_MS = 2000;
 
   await withServer(
     (req, res) => {
+      // §5.1: nunca se reenvía la cabecera Cookie (abriría un segundo canal
+      // de credencial no declarado por encima del Bearer). Se comprueba aquí,
+      // en el único servidor que inspecciona la petición entera, para que un
+      // refactor futuro que empiece a copiar cabeceras de entrada lo note.
+      assert.equal(req.headers.cookie, undefined, "no debía reenviar la cabecera Cookie");
+
       const kind = (req.headers.authorization ?? "").replace(/^Bearer /, "");
       switch (kind) {
         case "valid":
@@ -254,9 +264,9 @@ await (async () => {
       }
     },
     async (baseUrl) => {
-      assert.deepEqual(await fetchAccess("valid", baseUrl), validAccess);
+      assert.deepEqual(await fetchAccess("valid", baseUrl, TEST_TIMEOUT_MS), validAccess);
       for (const kind of ["malformed", "badjson", "400", "401", "404", "413", "500"]) {
-        const result = await fetchAccess(kind, baseUrl);
+        const result = await fetchAccess(kind, baseUrl, TEST_TIMEOUT_MS);
         assert.deepEqual(result, { error: true }, `caso "${kind}" debía degradar a {error:true}`);
       }
     }
@@ -265,19 +275,23 @@ await (async () => {
   // fetchAccessTrial() comparte el mismo mapeo; solo cambia método y ruta.
   await withServer(
     (req, res) => {
+      assert.equal(req.headers.cookie, undefined, "no debía reenviar la cabecera Cookie");
       assert.equal(req.method, "POST");
       assert.equal(req.url, "/v1/access/trial");
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(validAccess));
     },
     async (baseUrl) => {
-      assert.deepEqual(await fetchAccessTrial("valid", baseUrl), validAccess);
+      assert.deepEqual(await fetchAccessTrial("valid", baseUrl, TEST_TIMEOUT_MS), validAccess);
     }
   );
 
   // Un token que no sea string (p. ej. {error:true} de readSessionToken())
   // nunca llega a hacer la petición.
-  assert.deepEqual(await fetchAccess({ error: true }, "http://127.0.0.1:1"), { error: true });
+  assert.deepEqual(
+    await fetchAccess({ error: true }, "http://127.0.0.1:1", TEST_TIMEOUT_MS),
+    { error: true }
+  );
 })();
 
 console.log(

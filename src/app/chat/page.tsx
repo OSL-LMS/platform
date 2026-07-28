@@ -61,7 +61,7 @@ async function resolveAccess(email: string): Promise<Access> {
   }
   const config = resolveClientConfig();
   const token = await readSessionToken();
-  const result = await fetchAccess(token, config.apiBaseUrl);
+  const result = await fetchAccess(token, config.apiBaseUrl, config.accessTimeoutMs);
   return "error" in result
     ? { allowed: true, status: "none", trialDaysLeft: null }
     : result;

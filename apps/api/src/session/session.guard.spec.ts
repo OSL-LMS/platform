@@ -65,12 +65,25 @@ describe("SessionGuard", () => {
   // -------------------------------------------------------------------------
   // Fila 5 — sin cabecera Authorization
   // -------------------------------------------------------------------------
-  it("fila 5: sin cabecera Authorization rechaza con 401", async () => {
+  it("fila 5: sin cabecera Authorization rechaza con 401 y el cuerpo no dice por qué", async () => {
     const { context, request } = contextFor({});
 
-    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(UnauthorizedException);
+    const rejection = guard.canActivate(context);
+    await expect(rejection).rejects.toBeInstanceOf(UnauthorizedException);
     // El servicio de acceso ni se roza: la identidad nunca llegó al request.
     expect(request.user).toBeUndefined();
+
+    // El código de razón se REGISTRA, nunca se devuelve (§8). Hoy es
+    // estructuralmente imposible porque `deny()` lanza `UnauthorizedException()`
+    // sin argumentos — pero pasarle el motivo es un cambio de una palabra que
+    // convertiría los cuatro códigos en un oráculo público capaz de distinguir
+    // "secreto equivocado" de "token caducado" para un llamante anónimo.
+    const body = JSON.stringify(
+      await rejection.catch((err: UnauthorizedException) => err.getResponse())
+    );
+    for (const reason of ["missing_header", "malformed", "decode_failed", "missing_claims"]) {
+      expect(body).not.toContain(reason);
+    }
   });
 
   // -------------------------------------------------------------------------
@@ -205,9 +218,39 @@ describe("SessionGuard", () => {
     expect(output).not.toContain("eyJ");
   });
 
-  it("el secreto de pruebas no viaja en ningún mensaje de error", async () => {
-    const { context } = contextFor({ authorization: "Bearer no-es-un-jwe" });
-    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(UnauthorizedException);
-    expect(TEST_AUTH_SECRET.length).toBeGreaterThan(16);
+  it("AUTH_SECRET no viaja a la salida por ningún camino de rechazo", async () => {
+    // `getToken()` recibe el secreto como argumento, así que cualquier error que
+    // lo serializara —o un `logger` que imprimiera los parámetros— lo publicaría
+    // en los logs de Railway. Se recorren los cuatro caminos de rechazo, no uno.
+    const conSecretoAjeno = await sessionToken(
+      { id: "user-1", email: "a@ejemplo.test" },
+      { secret: "otro-secreto-completamente-distinto-y-largo" }
+    );
+    const sinClaims = await sessionToken({ id: "user-1" });
+
+    const requests: Record<string, string>[] = [
+      {}, // missing_header
+      { authorization: "Basic abc" }, // malformed
+      { authorization: "Bearer no-es-un-jwe" }, // decode_failed (token corrupto)
+      { authorization: `Bearer ${conSecretoAjeno}` }, // decode_failed (secreto)
+      { authorization: `Bearer ${sinClaims}` }, // missing_claims
+    ];
+
+    const capture = captureOutput();
+    let output: string;
+    try {
+      for (const headers of requests) {
+        await expect(guard.canActivate(contextFor(headers).context)).rejects.toBeInstanceOf(
+          UnauthorizedException
+        );
+      }
+    } finally {
+      output = capture.stop();
+    }
+
+    expect(output).not.toContain(TEST_AUTH_SECRET);
+    expect(output).not.toContain("eyJ");
+    // Y la salida no está vacía por accidente: los cinco rechazos sí registraron.
+    expect(output).toContain("session_guard");
   });
 });

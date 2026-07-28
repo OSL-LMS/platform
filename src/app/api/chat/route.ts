@@ -181,5 +181,5 @@ async function resolveTrialAccess(email: string): Promise<ApiResult> {
   }
   const config = resolveClientConfig();
   const token = await readSessionToken();
-  return fetchAccessTrial(token, config.apiBaseUrl);
+  return fetchAccessTrial(token, config.apiBaseUrl, config.accessTimeoutMs);
 }

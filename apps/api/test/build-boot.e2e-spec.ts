@@ -6,9 +6,11 @@
 // donde §Design Decisions demuestra que el import cruzado a
 // `src/lib/schema.ts` se rompe, y el transformador de los tests es otro — pasar
 // los tests no dice nada sobre `tsc`. Peor: con `"type": "module"` en
-// `apps/api/package.json`, `tsc` sale 0 SIN UN SOLO AVISO y el arranque revienta
-// con `SyntaxError: ... does not provide an export named 'subscriptions'`. La
-// única forma de detectarlo es arrancar el fichero emitido.
+// `apps/api/package.json`, `tsc` EMITE IGUAL —reporta errores de tipo de
+// drizzle-orm por el doble resolution-mode, pero sin `noEmitOnError` escribe el
+// `dist` de todas formas— y el arranque revienta con
+// `SyntaxError: ... does not provide an export named 'subscriptions'`. La única
+// forma de detectarlo es arrancar el fichero emitido.
 //
 // Regla de código: identificadores en inglés, comentarios en español.
 

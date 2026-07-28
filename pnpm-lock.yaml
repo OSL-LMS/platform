@@ -33,10 +33,10 @@ importers:
         specifier: ^1.6.4
         version: 1.6.4
       '@paddle/paddle-node-sdk':
-        specifier: ^3.8.0
+        specifier: 'catalog:'
         version: 3.8.0
       drizzle-orm:
-        specifier: ^0.45.2
+        specifier: 'catalog:'
         version: 0.45.2(@types/pg@8.20.0)(pg@8.21.0)
       next:
         specifier: ^15.5.0
@@ -45,13 +45,13 @@ importers:
         specifier: 5.0.0-beta.31
         version: 5.0.0-beta.31(next@15.5.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
       pg:
-        specifier: ^8.21.0
+        specifier: 'catalog:'
         version: 8.21.0
       posthog-js:
         specifier: ^1.407.2
         version: 1.407.2(preact-render-to-string@6.5.11)
       posthog-node:
-        specifier: ^5.46.0
+        specifier: 'catalog:'
         version: 5.46.0(rxjs@7.8.2)
       react:
         specifier: ^19.0.0
@@ -1165,14 +1165,8 @@ packages:
   '@posthog/browser-common@0.2.1':
     resolution: {integrity: sha512-FTVPsRw6GBKWvFwN26TNIQNNYPR9FsUj+B+CKhk/ht63IRzn4yYFtFOjcmW+bfXvNHuRADs6APbZ6Haz1kpoAw==}
 
-  '@posthog/core@1.44.0':
-    resolution: {integrity: sha512-uE+mdKvetxNQC6gWQf4MHIH8bGt+JN6z7ho0A4G3t9G1VGQTx9wHYHNwkKf3gzi+1oAXS9ej2VVY4pjWUU2PWg==}
-
   '@posthog/core@1.45.1':
     resolution: {integrity: sha512-tLtvzomavb2PPWdGYKsusyIzIeL2Px47v348Smibkay7sMy/83TyPk+Ptsp2NdeOgJsbuwSxWkR2+XA0aSCAaA==}
-
-  '@posthog/types@1.397.1':
-    resolution: {integrity: sha512-W/LpWbKVaaUnfZKuFuHa+Dg03D+fC87cM+PQbG+59JcSPW8F0JcBtSoXmpfrqbpuxUToMo+gktutrUkAb/KQBw==}
 
   '@posthog/types@1.398.0':
     resolution: {integrity: sha512-sJMkl4k+u8yS/0fjHsKqE9xTdsAh30a2WvgChiptellnVoE0e8QJKFgqOMD2sk8FaEArPdeFklAhXvmENAt3Sg==}
@@ -3888,15 +3882,9 @@ snapshots:
       '@posthog/core': 1.45.1
       '@posthog/types': 1.398.0
 
-  '@posthog/core@1.44.0':
-    dependencies:
-      '@posthog/types': 1.397.1
-
   '@posthog/core@1.45.1':
     dependencies:
       '@posthog/types': 1.398.0
-
-  '@posthog/types@1.397.1': {}
 
   '@posthog/types@1.398.0': {}
 
@@ -5180,7 +5168,7 @@ snapshots:
 
   posthog-node@5.46.0(rxjs@7.8.2):
     dependencies:
-      '@posthog/core': 1.44.0
+      '@posthog/core': 1.45.1
     optionalDependencies:
       rxjs: 7.8.2
 

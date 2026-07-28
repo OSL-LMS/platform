@@ -15,11 +15,13 @@ export function errorName(err: unknown): string {
   return `no-Error(${typeof err})`;
 }
 
-/** `err.cause.code` — el código de la causa (p. ej. `ECONNREFUSED`,
- *  `23505`), que es lo que hace diagnosticable un fallo sin contar nada del
- *  usuario. `-` cuando no hay. */
+/** El código del fallo (p. ej. `ECONNREFUSED`, `23505`): lo único que lo hace
+ *  diagnosticable sin contar nada del usuario. Se busca primero en
+ *  `err.cause.code` —ahí lo deja `DrizzleQueryError`, que envuelve el error de
+ *  `pg`— y si no, en `err.code`, que es donde lo trae un error de `pg` SIN
+ *  envolver, como el del evento `error` del pool. `-` cuando no hay ninguno. */
 export function causeCode(err: unknown): string {
-  const cause = (err as { cause?: { code?: unknown } } | null)?.cause;
-  const code = cause?.code;
+  const target = (err as { cause?: { code?: unknown }; code?: unknown } | null) ?? {};
+  const code = target.cause?.code ?? target.code;
   return typeof code === "string" || typeof code === "number" ? String(code) : "-";
 }

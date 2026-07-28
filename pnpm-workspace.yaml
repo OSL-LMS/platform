@@ -16,6 +16,12 @@ packages:
 # resoluciones distintas se cargan dos instancias de drizzle-orm y
 # `drizzle(pool, { schema })` deja de reconocer las tablas (PRD-003 §Design
 # Decisions). El catálogo es el sitio donde eso queda escrito una sola vez.
+#
+# LOS DOS LADOS usan `catalog:` — la raíz también. Con la raíz en `^0.45.2` esto
+# funcionaba solo por deduplicación del lockfile: en cuanto saliera un
+# `drizzle-orm@0.45.3`, el caret de la raíz lo aceptaría, el pin de aquí no, y
+# aparecerían las dos instancias sin que nadie tocara `apps/api`. Un catálogo que
+# solo obedece una mitad del workspace no es un pin, es una nota.
 catalog:
   drizzle-orm: 0.45.2
   pg: 8.21.0

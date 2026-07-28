@@ -16,11 +16,14 @@ import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
 import { API_CONFIG, type ApiConfig } from "../config.ts";
-import { errorName } from "../common/error-fields.ts";
+import { causeCode, errorName } from "../common/error-fields.ts";
 import * as schema from "./schema.ts";
 
 /** Conexiones reservadas a este servicio. Ver la tabla de §6. */
 export const MAX_POOL_CONNECTIONS = 8;
+
+/** A nivel de módulo porque la fábrica del pool no tiene `this`. */
+const poolLogger = new Logger("DrizzlePool");
 
 export const DRIZZLE = "DRIZZLE";
 export const PG_POOL = "PG_POOL";
@@ -33,8 +36,27 @@ export type Database = NodePgDatabase<typeof schema>;
     {
       provide: PG_POOL,
       inject: [API_CONFIG],
-      useFactory: (config: ApiConfig) =>
-        new Pool({ connectionString: config.databaseUrl, max: MAX_POOL_CONNECTIONS }),
+      useFactory: (config: ApiConfig) => {
+        const pool = new Pool({
+          connectionString: config.databaseUrl,
+          max: MAX_POOL_CONNECTIONS,
+        });
+
+        // `pg` emite `error` cuando se cae un cliente OCIOSO del pool —un
+        // reinicio de la base, un corte del proxy—, fuera de cualquier
+        // petición. Sin listener, Node lo trata como excepción no capturada y
+        // TUMBA EL PROCESO: es el único camino por el que una excepción esquiva
+        // el filtro global, porque no nace dentro del ciclo de una petición.
+        // Esto es disponibilidad, no PII (ese error no lleva parámetros
+        // ligados), pero se registra igual bajo las reglas de §8.
+        pool.on("error", (err: unknown) => {
+          poolLogger.error(
+            `Cliente ocioso del pool caído: name=${errorName(err)} code=${causeCode(err)}`
+          );
+        });
+
+        return pool;
+      },
     },
     {
       provide: DRIZZLE,
