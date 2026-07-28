@@ -1,0 +1,42 @@
+{
+  "name": "api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Servicio NestJS del dominio de acceso y cobro (PRD-003 fase 1). Verifica el JWT de sesión de Auth.js, sirve /v1/access* y el webhook de Paddle.",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/apps/api/src/main.js",
+    "start:dev": "nest start --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@auth/core": "0.41.2",
+    "@nestjs/common": "^11.1.28",
+    "@nestjs/core": "^11.1.28",
+    "@nestjs/platform-express": "^11.1.28",
+    "@paddle/paddle-node-sdk": "catalog:",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "drizzle-orm": "catalog:",
+    "pg": "catalog:",
+    "posthog-node": "catalog:",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.10",
+    "@nestjs/schematics": "^11.0.8",
+    "@nestjs/testing": "^11.1.28",
+    "@swc/core": "^1.15.46",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.20.0",
+    "typescript": "^5.9.3",
+    "unplugin-swc": "^1.5.9",
+    "vitest": "^4.1.10"
+  }
+}

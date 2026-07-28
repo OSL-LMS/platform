@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
-import { track } from "@/lib/analytics";
+// Ruta relativa CON extensión: así estos módulos pueden importarse desde
+// scripts/check-access-bridge.ts (Node pelado, sin los `paths` de
+// tsconfig.json) sin arrastrar nada de Next — mismo patrón que src/lib/db.ts
+// con schema.ts (PRD-002 §9).
+import { track } from "../../../lib/analytics.ts";
+import { shouldEmitPageview } from "../../../lib/pixel.ts";
 
 // El denominador del embudo: un píxel first-party que cuenta las visitas a las
 // páginas públicas SIN cookies y sin identificar a nadie — el distinct_id es un
@@ -37,9 +42,11 @@ export async function GET(req: Request): Promise<Response> {
   const userAgent = req.headers.get("user-agent") ?? "";
   if (!PUBLIC_PATHS.has(path) || BOT_RE.test(userAgent)) return gif();
 
+  const salt = process.env.ANALYTICS_SALT;
+  if (!shouldEmitPageview(salt)) return gif();
+
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
   const day = new Date().toISOString().slice(0, 10);
-  const salt = process.env.AUTH_SECRET ?? "";
   const distinctId =
     "anon-" +
     createHash("sha256").update(`${ip}|${userAgent}|${day}|${salt}`).digest("hex").slice(0, 32);

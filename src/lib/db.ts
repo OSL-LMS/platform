@@ -23,7 +23,9 @@ const connectionString =
   "postgres://placeholder:placeholder@localhost:5432/placeholder";
 
 // Un único Pool reutilizado por el servidor Node de larga vida (next start).
-const pool = new Pool({ connectionString });
+// `max` explícito (PRD-003 §6): reparte el límite de conexiones de Postgres
+// entre Next (8), apps/api (8) y el margen para migraciones/scripts (4).
+const pool = new Pool({ connectionString, max: 8 });
 
 // Cliente Drizzle con el esquema cargado (habilita la API relacional `db.query`).
 export const db = drizzle(pool, { schema });
