@@ -105,42 +105,5 @@
       "slug": "L7",
       "title": "La evidencia y el ritual"
     }
-  ],
-  "seasonRows": [
-    {
-      "slug": "L1",
-      "title": "Hoy publicas en internet",
-      "outcome": "publicas tu web con tu nombre"
-    },
-    {
-      "slug": "L2",
-      "title": "Leer código, antes de escribirlo",
-      "outcome": "explicas tu primer código y lo cambias"
-    },
-    {
-      "slug": "L3",
-      "title": "Que se vea como tú quieres",
-      "outcome": "tu página, con tu diseño"
-    },
-    {
-      "slug": "L4",
-      "title": "La terminal sin miedo",
-      "outcome": "te mueves por tu máquina como developer"
-    },
-    {
-      "slug": "L5",
-      "title": "Git: tu trabajo, a salvo y con historia",
-      "outcome": "tu repositorio con historia de verdad"
-    },
-    {
-      "slug": "L6",
-      "title": "Tu primer código ajeno que funciona",
-      "outcome": "integras y corriges código que no escribiste"
-    },
-    {
-      "slug": "L7",
-      "title": "La evidencia y el ritual",
-      "outcome": "tu primera pieza de portafolio, defendida"
-    }
   ]
 }

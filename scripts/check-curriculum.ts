@@ -9,10 +9,13 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
+  buildForest,
+  lessonContextInputs,
   MAX_NODES,
   parseCurriculumFile,
   type CurriculumNodeInput,
 } from "../src/lib/curriculum-file.ts";
+import { buildLessonContext } from "../src/lib/curriculum-context.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -158,12 +161,41 @@ const file = (nodes: CurriculumNodeInput[]) => ({ curriculum: "test", nodes });
   );
 
   // `audience` ausente: se OMITE la frase, no se interpola `undefined`. Es la
-  // única llave del bloque de system marcada opcional.
+  // única llave del bloque de system marcada opcional, y el mismo modo de fallo
+  // por el que `stuck` es obligatoria sobrevivía justo ahí.
+  //
+  // No basta con que el archivo valide: hay que RENDERIZAR el bloque. Un
+  // `Tus estudiantes son undefined.` pasa la validación y llega al prompt
+  // certificado igual. `buildLessonContext` es puro, así que se comprueba aquí
+  // sin Postgres.
   {
     const flat = parseCurriculumFile(
       file([module_({ slug: "sin-audiencia", children: [lesson({ slug: "Z1" })] })])
     );
     assert.equal(flat.length, 2);
+
+    const forest = buildForest(flat);
+    const sin = lessonContextInputs(forest, "Z1");
+    const block = buildLessonContext(sin.moduleLessons, sin.ancestors, "Z1");
+    assert.ok(!block.includes("undefined"), "se interpoló `undefined` en el bloque de system");
+    assert.ok(!block.includes("Tus estudiantes son"), "la frase debe omitirse entera");
+    assert.match(block, /Módulo en curso: "Un módulo"\./);
+
+    // Y con `audience`, la frase sí aparece: la omisión es condicional, no una
+    // línea muerta.
+    const conAudiencia = buildForest(
+      parseCurriculumFile(
+        file([
+          module_({ slug: "con-audiencia", payload: { audience: "principiantes" },
+                    children: [lesson({ slug: "Z2" })] }),
+        ])
+      )
+    );
+    const con = lessonContextInputs(conAudiencia, "Z2");
+    assert.match(
+      buildLessonContext(con.moduleLessons, con.ancestors, "Z2"),
+      /Tus estudiantes son principiantes\./
+    );
   }
 
   // Cota por valor (4 000) sobre lo que alcanza el bloque de system.
@@ -226,6 +258,38 @@ const file = (nodes: CurriculumNodeInput[]) => ({ curriculum: "test", nodes });
   rejects(() => parseCurriculumFile(withUrl("//evil.example.com/x")), /allowlist|esquema/);
   rejects(() => parseCurriculumFile(withUrl("https://evil.example.com")), /allowlist/);
   assert.equal(parseCurriculumFile(withUrl("https://contextia.io/precios")).length, 1);
+
+  // EVASIÓN. El parser de URL de la WHATWG elimina tab, LF y CR antes de
+  // parsear, así que estas seis formas navegan exactamente igual que las de
+  // arriba. Si el detector mira el valor crudo, no casan, y como es la ÚNICA
+  // puerta ni el control de esquema ni la allowlist llegan a correr.
+  for (const evasion of [
+    "https:\t//evil.example.com/x",
+    "https:\n//evil.example.com/x",
+    "https:\r//evil.example.com/x",
+    "java\tscript:alert(1)",
+    "javascript:\talert(1)",
+    "javascript: alert(1)",
+  ]) {
+    rejects(() => parseCurriculumFile(withUrl(evasion)), /esquema|allowlist/);
+  }
+
+  // Y a cualquier profundidad: `payload` es libre de llaves, así que anidar una
+  // URL en un objeto o en un array no puede saltarse el control.
+  rejects(
+    () =>
+      parseCurriculumFile(
+        file([module_({ slug: "url-anidada", payload: { cta: { href: "https://evil.example.com" } } })])
+      ),
+    /payload\.cta\.href.*allowlist/s
+  );
+  rejects(
+    () =>
+      parseCurriculumFile(
+        file([module_({ slug: "url-en-array", payload: { links: ["https://evil.example.com"] } })])
+      ),
+    /payload\.links\[0\].*allowlist/s
+  );
   // Una frase con dos puntos NO es una URL: el título real de L5 lo demuestra.
   assert.equal(
     parseCurriculumFile(file([lesson({ title: "Git: tu trabajo, a salvo y con historia" })])).length,
@@ -340,12 +404,18 @@ const sources = [...sourceFiles("src"), ...sourceFiles("scripts")].map((path) =>
   assert.doesNotMatch(route.text, /body\.curriculum|curriculum\s*:\s*body/);
   assert.match(route.text, /curriculumSlug\(\)/);
 
-  // (d) Todo `href` nacido del `payload` lleva rel="noreferrer noopener".
+  // (d) Todo `href` nacido del `payload` lleva rel="noreferrer noopener". Se
+  //     mira la ETIQUETA entera, no la línea: el formato normal de JSX en este
+  //     repositorio parte los atributos en varias líneas (ver page.tsx), así
+  //     que una comprobación por línea dependería de cómo formatee Prettier.
   for (const { path, text } of sources) {
-    for (const line of text.split("\n")) {
-      if (/href=\{/.test(line) && /payload/.test(line)) {
-        assert.match(line, /rel="noreferrer noopener"/, `${path}: href desde payload sin rel seguro`);
-      }
+    for (const tag of text.match(/<a\b[^>]*>/g) ?? []) {
+      if (!/href=\{/.test(tag) || !/payload/.test(tag)) continue;
+      assert.match(
+        tag,
+        /rel="noreferrer noopener"/,
+        `${path}: href nacido del payload sin rel seguro`
+      );
     }
   }
 

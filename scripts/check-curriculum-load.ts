@@ -64,6 +64,43 @@ if (process.env.DATABASE_URL && sameDatabase(TEST_URL, process.env.DATABASE_URL)
   process.exit(1);
 }
 
+// Y la guardia en sí, ejercitada en SUBPROCESO. Probar solo `sameDatabase()`
+// dejaba sin cubrir los dos `process.exit(1)` que separan a un principiante de
+// vaciar el currículo de producción: invertir el `if` de arriba, o perder el
+// `exit`, mantendría las aserciones puras en verde.
+{
+  const selfCheck = (env: Record<string, string | undefined>): number => {
+    try {
+      execFileSync(process.execPath, ["scripts/check-curriculum-load.ts"], {
+        cwd: ROOT,
+        stdio: "pipe",
+        // `SELFCHECK` corta la recursión: el subproceso aborta en la guardia
+        // mucho antes, pero si algún día dejara de hacerlo no queremos una
+        // cascada de procesos escribiendo en la base.
+        env: { ...process.env, SELFCHECK: "1", ...env },
+      });
+      return 0;
+    } catch (err) {
+      return (err as { status?: number }).status ?? 1;
+    }
+  };
+
+  if (!process.env.SELFCHECK) {
+    assert.equal(
+      selfCheck({ CURRICULUM_TEST_DATABASE_URL: undefined }), 1,
+      "sin CURRICULUM_TEST_DATABASE_URL el script tiene que abortar con código 1"
+    );
+    assert.equal(
+      selfCheck({ DATABASE_URL: TEST_URL }), 1,
+      "apuntando a la misma base que DATABASE_URL tiene que abortar con código 1"
+    );
+    assert.equal(
+      selfCheck({ DATABASE_URL: `${TEST_URL}?sslmode=require` }), 1,
+      "la misma base con otros parámetros de conexión sigue siendo la misma base"
+    );
+  }
+}
+
 // A partir de aquí, todo (incluido el cargador que se lanza en subproceso) va
 // contra la base de pruebas.
 process.env.DATABASE_URL = TEST_URL;
@@ -465,6 +502,8 @@ for (const name of scenarios) await wipe(name);
   assert.match(block, /Tus estudiantes son gente de jm1\./);
 
   // Y el módulo sin `audience`: se omite la frase, no se interpola `undefined`.
+  // La fila 7 lo cubre de forma pura en `check-curriculum.ts`; esto es el mismo
+  // comportamiento contra datos reales de Postgres.
   const other = await getLessonContextInputs(c, "jb1");
   const otherBlock = buildLessonContext(other.moduleLessons, other.ancestors, "jb1");
   assert.ok(!otherBlock.includes("undefined"), "se interpoló `undefined` en el bloque de system");

@@ -63,8 +63,18 @@ export class CurriculumFileError extends Error {
 type PayloadRule = {
   type: "string" | "number" | "boolean";
   required: boolean;
-  /** Viaja al segundo bloque de system del tutor: arrastra cota y filtro. */
-  reachesSystemBlock?: boolean;
+  /**
+   * El valor acaba en la entrada de un modelo: arrastra la cota de 4 000
+   * caracteres, el filtro de patrones imperativos y el control de URLs.
+   *
+   * No es lo mismo que "lo lee la home". `stuck`, `outcome`, `audience` y
+   * `title` viajan al segundo bloque de system del tutor. `scope` no: viaja en
+   * el archivo publicado (§5.4), cuyo consumidor real es el generador de
+   * exámenes, que se lo da a un juez. Distinto camino, mismo destino, mismos
+   * guardas — y es lo que `CONTRIBUTING.md` promete al enumerarlo entre las
+   * llaves que exigen el escrutinio del prompt certificado.
+   */
+  modelBound?: boolean;
 };
 
 /**
@@ -81,14 +91,14 @@ export const PAYLOAD_VOCABULARY: Record<string, Record<string, PayloadRule>> = {
     status: { type: "string", required: true },
     statusLabel: { type: "string", required: true },
     hasDetail: { type: "boolean", required: true },
-    scope: { type: "string", required: false },
+    scope: { type: "string", required: false, modelBound: true },
   },
   module: {
-    audience: { type: "string", required: false, reachesSystemBlock: true },
+    audience: { type: "string", required: false, modelBound: true },
   },
   lesson: {
-    outcome: { type: "string", required: true, reachesSystemBlock: true },
-    stuck: { type: "string", required: true, reachesSystemBlock: true },
+    outcome: { type: "string", required: true, modelBound: true },
+    stuck: { type: "string", required: true, modelBound: true },
   },
 };
 
@@ -121,9 +131,22 @@ const UUID_PATTERN =
  *  y con historia" — y renombrar una lección pública para contentar al
  *  validador contradice el objetivo de "no cambiar ni un píxel". Se exige que
  *  tras los dos puntos venga un carácter NO blanco, que es lo que separa una
- *  URL de una frase con dos puntos. No relaja nada: `https://…`,
- *  `javascript:alert(1)` y `//evil.example.com` siguen cayendo. */
+ *  URL de una frase con dos puntos.
+ *
+ *  Esa exigencia SOLA sí relajaba el control, y por eso no va sola: el parser
+ *  de URL de la WHATWG **elimina tab, LF y CR antes de parsear**, así que
+ *  `"https:\tevil"` no casaba y el navegador navegaba igual. Se normaliza
+ *  primero (`stripUrlNoise`) y se añade una lista cerrada de esquemas
+ *  peligrosos que caen aunque lleven espacio detrás — `javascript: alert(1)`
+ *  ejecuta en un `href` y ninguna prosa del temario empieza por `javascript:`. */
 const URL_LIKE = /^\s*(?:[a-z][a-z0-9+.-]*:\S|\/\/)/i;
+
+/** Los tres caracteres que el parser de URL descarta en silencio. */
+const stripUrlNoise = (value: string) => value.replace(/[\t\n\r]/g, "");
+
+/** Esquemas que se rechazan aunque no parezcan URL: lo que va detrás de los
+ *  dos puntos es carga útil, no prosa. */
+const DANGEROUS_SCHEME = /^\s*(?:javascript|data|vbscript|file|blob)\s*:/i;
 
 /** El control de esquema no cubre el DESTINO: `https://evil.example.com` pasa
  *  cualquier control de esquema y sigue siendo un enlace saliente arbitrario
@@ -264,7 +287,7 @@ export function parseCurriculumFile(raw: unknown): FlatNode[] {
       if (!Array.isArray(kids)) fail(`${label(rawNode)}: "children" no es un array`);
 
       // `title` es columna, no payload, pero alcanza el bloque de system igual.
-      checkSystemValue(rawNode, "title", title);
+      checkModelBoundValue(rawNode, "title", title);
       checkPayload(rawNode, kind, payload);
 
       flat.push({
@@ -323,20 +346,41 @@ function checkPayload(
     if (rule.type === "string" && (value as string).length === 0) {
       fail(`${label(rawNode)}: "payload.${key}" está vacía`);
     }
-    if (rule.reachesSystemBlock) {
-      checkSystemValue(rawNode, `payload.${key}`, value as string);
+    if (rule.modelBound) {
+      checkModelBoundValue(rawNode, `payload.${key}`, value as string);
     }
   }
 
-  // Las reglas de URL aplican a TODO valor del payload, declarado o no: una
-  // llave libre también se renderiza en la home.
-  for (const [key, value] of Object.entries(payload)) {
-    if (typeof value === "string") checkUrlSafety(rawNode, `payload.${key}`, value);
+  // Las reglas de URL aplican a TODO valor del payload, declarado o no, y a
+  // cualquier profundidad: `payload` es libre de llaves por diseño, así que un
+  // `{"link": {"href": "…"}}` o un `{"links": ["…"]}` son representables y se
+  // renderizarían igual. Mirar solo el primer nivel dejaba esa superficie
+  // abierta por construcción.
+  walkStrings(payload, "payload", (field, value) =>
+    checkUrlSafety(rawNode, field, value)
+  );
+}
+
+/** Recorre todos los strings de una estructura JSON, con su ruta. */
+function walkStrings(
+  value: unknown,
+  path: string,
+  visit: (field: string, value: string) => void
+): void {
+  if (typeof value === "string") return visit(path, value);
+  if (Array.isArray(value)) {
+    value.forEach((item, i) => walkStrings(item, `${path}[${i}]`, visit));
+    return;
+  }
+  if (isPlainObject(value)) {
+    for (const [key, child] of Object.entries(value)) {
+      walkStrings(child, `${path}.${key}`, visit);
+    }
   }
 }
 
-/** Cota y filtro de todo lo que alcanza el segundo bloque de system. */
-function checkSystemValue(
+/** Cota y filtro de todo lo que acaba en la entrada de un modelo. */
+function checkModelBoundValue(
   rawNode: Record<string, unknown>,
   field: string,
   value: string
@@ -360,9 +404,13 @@ function checkUrlSafety(
   field: string,
   value: string
 ): void {
-  if (!URL_LIKE.test(value)) return;
+  // Se normaliza ANTES de decidir: si se mira el valor crudo, un tabulador
+  // dentro del esquema salta esta puerta entera — y esta puerta es la única,
+  // así que ni el control de esquema ni la allowlist de host llegarían a correr.
+  const normalized = stripUrlNoise(value);
+  if (!URL_LIKE.test(normalized) && !DANGEROUS_SCHEME.test(normalized)) return;
 
-  const trimmed = value.trim();
+  const trimmed = normalized.trim();
   // `//host/x` es relativo a protocolo: el navegador lo trata como cross-origin.
   const candidate = trimmed.startsWith("//") ? `https:${trimmed}` : trimmed;
 

@@ -132,16 +132,41 @@ export function diffIdentities(beforeRaw: unknown, afterRaw: unknown): IdentityD
 }
 
 // ---------------------------------------------------------------------------
-// El archivo real, contra `git show HEAD:`
+// El archivo real, contra la versión de la que parte la rama
 // ---------------------------------------------------------------------------
+
+function git(...args: string[]): string {
+  return execFileSync("git", args, { cwd: ROOT, encoding: "utf8", stdio: "pipe" }).trim();
+}
+
+/**
+ * Contra QUÉ se compara. `HEAD` a secas no sirve en el flujo que
+ * `CONTRIBUTING.md` prescribe: commitear es el paso 5 y abrir el PR el 6, así
+ * que quien corre esto en orden ya tiene el `id` cambiado DENTRO de `HEAD` —
+ * el diff sale vacío y el script imprime OK sin haber mirado nada.
+ *
+ * La base correcta es de dónde salió la rama. `HEAD` queda como último
+ * recurso: en la rama por defecto sí es la comparación que se quiere.
+ */
+function baseRef(): string {
+  for (const ref of ["origin/main", "origin/master", "main", "master"]) {
+    try {
+      git("rev-parse", "--verify", "--quiet", ref);
+      return git("merge-base", "HEAD", ref);
+    } catch {
+      // Esa referencia no existe en este clon; se prueba la siguiente.
+    }
+  }
+  return "HEAD";
+}
+
+const base = baseRef();
 let head: unknown = null;
 try {
-  head = JSON.parse(
-    execFileSync("git", ["show", `HEAD:${FILE}`], { cwd: ROOT, encoding: "utf8", stdio: "pipe" })
-  );
+  head = JSON.parse(git("show", `${base}:${FILE}`));
 } catch {
-  // El archivo aún no existe en HEAD (es nuevo): no hay contra qué comparar.
-  console.log(`OK — ${FILE} no existe todavía en HEAD: nada que comparar.`);
+  // El archivo aún no existe en la base (es nuevo): no hay contra qué comparar.
+  console.log(`OK — ${FILE} no existe todavía en ${base.slice(0, 8)}: nada que comparar.`);
   process.exit(0);
 }
 
@@ -150,7 +175,9 @@ const diff = diffIdentities(head, working);
 
 const problems = diff.changed.length + diff.gone.length + diff.suspicious.length;
 if (problems > 0) {
-  console.error(`curriculum-identity — ${problems} cambio(s) de identidad respecto a HEAD:`);
+  console.error(
+    `curriculum-identity — ${problems} cambio(s) de identidad respecto a ${base.slice(0, 8)}:`
+  );
   for (const c of diff.changed) {
     console.error(`  ! "${c.slug}" cambia de id: ${c.before} → ${c.after}`);
   }
@@ -169,5 +196,6 @@ if (problems > 0) {
 }
 
 console.log(
-  `OK — identidad estable respecto a HEAD: ${diff.added.length} alta(s), ningún \`id\` cambiado.`
+  `OK — identidad estable respecto a ${base.slice(0, 8)}: ` +
+    `${diff.added.length} alta(s), ningún \`id\` cambiado.`
 );
