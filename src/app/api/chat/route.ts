@@ -44,7 +44,16 @@ export async function POST(req: Request) {
   // sin tarjeta). Sin trial vigente ni suscripción activa, no hay tutor. Con el
   // puente caído (timeout o 5xx), el tutor se deniega con 503 en vez de
   // conceder acceso sin poder verificarlo (§5.3, excepción declarada al goal 6).
+  // Cronometrado para PRD-003 §10 paso 3, que nombra "la duración de la llamada
+  // a /v1/access/trial" como la señal contra la que se compara el umbral de
+  // +200 ms p95 de ADR-001 §6 — la que decide si el puente se queda donde está.
+  // Se mide el helper entero y no solo el fetch: incluye leer la cookie de
+  // sesión y resolver la configuración, que es lo que de verdad espera el
+  // estudiante. Las dos son de microsegundos, así que no mueven la aguja.
+  const accessStartedAt = performance.now();
   const result = await resolveTrialAccess();
+  const accessMs = Math.round(performance.now() - accessStartedAt);
+
   const decision = decideTutorTurn(result);
   if (!decision.ok) {
     const message =
@@ -73,8 +82,15 @@ export async function POST(req: Request) {
   // Paso intermedio del embudo. Se emite al ACEPTAR el mensaje, no al cerrar el
   // stream: lo que medimos aquí es que el estudiante habló con el tutor, y eso
   // ya pasó aunque Anthropic falle a mitad de la respuesta.
+  // OJO AL LEER `access_ms` EN POSTHOG: solo llega aquí el turno CONCEDIDO. Un
+  // puente caído devuelve 503 arriba y no emite el evento —deliberado, §5.3: un
+  // turno denegado corromperia el embudo—, así que esta serie describe la salud
+  // del camino bueno y NO detecta un puente que agota el timeout. Para eso está
+  // la tasa de 503, que es otra señal. Un p95 limpio aquí con el tutor caído es
+  // un resultado coherente, no una contradicción.
   track(email, "tutor_message_sent", {
     access_status: access.status,
+    access_ms: accessMs,
     lesson: lesson ?? null,
   });
 
