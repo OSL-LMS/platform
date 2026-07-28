@@ -148,12 +148,14 @@ Forma canónica del adapter. `account` y `session` tienen `onDelete: cascade` co
 
 ## Domain: `acceso`
 
-**Source PRDs**: — (anterior a la adopción de specforge)
+**Source PRDs**: PRD-003 (fase 1)
 **Primary owners**: mantenedores del repo
 
 ### Overview
 
 La frontera gratis/pago. Trial de 7 días sin tarjeta que **arranca con el primer mensaje al tutor**, no al hacer login: entrar a curiosear no gasta la prueba. Vencido el trial o cancelada la suscripción, el chat se sustituye por el muro de pago (Paddle).
+
+**Este dominio existe hoy por duplicado.** PRD-003 lo portó a `apps/api`, un servicio NestJS aparte, pero detrás de `ACCESS_VIA_API` **apagado por defecto**: lo que sirve en producción sigue siendo el camino en proceso de `src/lib/access.ts`. Las dos implementaciones escriben la misma tabla con las mismas sentencias idempotentes, así que conviven sin divergir. El camino viejo se retira en el paso 5 de la migración de PRD-003, no antes.
 
 ### Key Entities
 
@@ -181,12 +183,18 @@ El estado derivado que consume la app es `Access = { allowed, status: "none" \| 
 | Muro de pago con checkout de Paddle | `src/app/paywall.tsx` | — |
 | Payment link por defecto de Paddle (`?_ptxn=`) | `/checkout` (pública) | — |
 | Utilidades de dev: consultar / vencer un trial | `scripts/check-sub.mjs`, `scripts/expire-trial.mjs` | — |
+| Las tres anteriores, servidas por HTTP | `GET /v1/access`, `POST /v1/access/trial`, `POST /v1/webhooks/paddle` — `apps/api` | PRD-003 |
+| Puente de sesión entre servicios | `apps/web` reenvía el JWT de Auth.js como `Bearer`; `SessionGuard` lo verifica con `getToken()` de `@auth/core/jwt` | PRD-003 |
+| Conmutar entre el camino en proceso y el HTTP | `ACCESS_VIA_API` (apagado por defecto) — `src/lib/api-client.ts` | PRD-003 |
 
 ### Key Invariants
 
-- **`getAccess` solo lee; `ensureTrial` es el único que crea la fila**, y se invoca exclusivamente desde `POST /api/chat`. Renderizar `/chat` nunca arranca la prueba.
+- **`getAccess` solo lee; `ensureTrial` es el único que crea la fila.** Renderizar `/chat` nunca arranca la prueba. **Lo que cambió con PRD-003**: antes esa invariante la garantizaba el call site —`ensureTrial` era privada y solo la llamaba `POST /api/chat`—; ahora `POST /v1/access/trial` es un endpoint alcanzable, así que la garantía pasa a ser "solo `apps/web` lo llama". Cualquiera con sesión válida puede arrancar su propio trial con un `curl` sin escribirle al tutor: el daño es nulo (quema su propia prueba) pero desacopla `trial_started` de `tutor_message_sent`.
 - El evento `trial_started` se emite **solo** cuando ese request creó la fila (`returning()` no vacío): un trial, un evento. La carrera de dos primeros mensajes simultáneos se resuelve releyendo la fila tras el `onConflictDoNothing`.
-- El webhook **debe leer el body crudo con `req.text()`**; `req.json()` rompe la verificación de firma del SDK de Paddle.
+- El webhook **debe leer el body crudo**; parsear a JSON antes rompe la verificación de firma del SDK de Paddle. En Next es `req.text()`; en `apps/api` es `rawBody: true` más `.toString("utf8")`, porque `req.rawBody` es un `Buffer` y `unmarshal` espera `string`.
+- **La identidad en `apps/api` sale del token y de ningún otro sitio.** Los handlers de `/v1/access*` no declaran `@Body()`, `@Query()` ni `@Param()`: ése es el control, no el `ValidationPipe`, que sin DTO no ejecuta nada. Un `email` suministrado por el llamante se ignora — si se leyera, cualquiera con sesión válida leería y escribiría la fila de cualquier otro, siendo `email` la llave única.
+- **`AUTH_COOKIE_NAME` es obligatoria y sin defecto** en los dos servicios. El `salt` de Auth.js es el nombre de la cookie, y Auth.js elige el prefijo `__Secure-` según el **protocolo de la petición**, no según `NODE_ENV`; `apps/api` recibe un Bearer y no puede ver ese protocolo, así que no puede adivinarlo. Un desajuste produce 401 para todo el mundo.
+- **`apps/web` nunca reenvía la cabecera `Cookie`** a `apps/api`: `getToken()` prefiere la cookie sobre el Bearer, así que reenviarla abriría un segundo canal de credencial no declarado.
 - El webhook responde **200 incluso ante un error propio** (lo registra en consola) para que Paddle no reintente en bucle. Firma inválida o evento ausente sí devuelven 400.
 - El correo llega desde Paddle en `customData.email` del checkout y se pasa a minúsculas antes de escribir.
 - **El webhook escribe con upsert, nunca con `UPDATE` a secas**: un pago puede llegar sin fila previa (`/checkout` es público y los flujos hospedados de Paddle no pasan por el tutor). `paddle_subscription_id` solo se sobrescribe si el evento trae uno.
@@ -196,6 +204,10 @@ El estado derivado que consume la app es `Access = { allowed, status: "none" \| 
 
 - No hay reconciliación periódica contra la API de Paddle: si un webhook se pierde, el estado queda desincronizado hasta el siguiente evento.
 - `EventName.SubscriptionUpdated` deriva `canceled` de `data.status`; el resto de estados de Paddle (`paused`, `past_due`) caen a `active`.
+- **`apps/api` registra un listener `error` en el pool de `pg`** (`apps/api/src/db/drizzle.module.ts`). Sin él, un cliente **ocioso** caído —reinicio de la base, corte del proxy— es una excepción no capturada que tumba el proceso: es el único camino por el que una excepción no pasa por el filtro global, porque no nace dentro de una petición. No hay test: provocarlo exige matar la conexión desde el servidor. Un refactor puede borrarlo sin que nada se ponga rojo. `src/lib/db.ts` sigue sin listener, de antes de PRD-003.
+- **Tres comprobaciones del rollout de PRD-003 no son repetibles.** Que `/chat` renderice con historial y selector durante una degradación, que el 503 del tutor no emita `tutor_message_sent`, y que un 401 de `apps/api` no redirija a `/signin` se verifican **a mano** en el paso 3, porque afirman sobre render de Server Components y `next/headers`, que el runner de `scripts/` no puede ejecutar. Quien toque `src/app/chat/page.tsx` o `src/app/api/chat/route.ts` después de esta fase tiene que re-verificarlas a mano.
+- **`src/lib/pixel.ts` existe por una restricción de Next**, no por diseño: `shouldEmitPageview()` no puede exportarse desde `src/app/api/t/route.ts` porque un Route Handler solo admite exports de métodos HTTP y claves de configuración. PRD-003 no lo nombra.
+- **`PADDLE_TRACK_ENABLED` no se retira** en el paso 5 de la migración, que sí retira `ACCESS_VIA_API` y borra el handler que la variable gobierna. Queda pudriéndose en la configuración de Railway si nadie la quita.
 
 ---
 
@@ -342,9 +354,12 @@ Vocabulario del `payload` que la aplicación exige: `stage` → `built`, `aiRole
 
 - **Embudo server-side** (`src/lib/analytics.ts`, `posthog-node`): eventos `registered` → `trial_started` → `tutor_message_sent` → `subscription_activated` / `subscription_canceled`. El `distinct_id` es siempre el correo. El union `TutorEvent` impide que un typo invente un evento y parta el embudo.
 - `track()` es fire-and-forget y **nunca se hace `await`** en el call site; sin `POSTHOG_API_KEY` es un no-op silencioso (protegido por `scripts/check-analytics.ts`). `flush()` existe para los procesos cortos de `scripts/`.
-- **Denominador anónimo**: `GET /api/t` sirve un GIF 1×1 y emite `server_pageview`. El `distinct_id` es `sha256(ip|ua|día|AUTH_SECRET)` truncado — sal que rota a diario, así que no persiste ni permite seguimiento entre días; por eso no requiere consentimiento. Solo cuenta rutas de `PUBLIC_PATHS` (`/`, `/registro`, `/precios`, `/signin`) y descarta user-agents de bot. Las UTM se leen del `Referer` del píxel.
+- **Denominador anónimo**: `GET /api/t` sirve un GIF 1×1 y emite `server_pageview`. El `distinct_id` es `sha256(ip|ua|día|ANALYTICS_SALT)` truncado — sal que rota a diario, así que no persiste ni permite seguimiento entre días; por eso no requiere consentimiento. **La sal dejó de ser `AUTH_SECRET` en PRD-003**, que la replicó a un segundo servicio: quien tuviera el secreto podía romper la anonimidad por fuerza bruta sobre (IP × UA × día). Y **falla cerrado**: sin `ANALYTICS_SALT` el píxel devuelve el GIF y no emite, nunca `?? ""` — con sal vacía el hash lo reproduce cualquiera sin conocer ningún secreto, que es peor que no medir. Solo cuenta rutas de `PUBLIC_PATHS` (`/`, `/registro`, `/precios`, `/signin`) y descarta user-agents de bot. Las UTM se leen del `Referer` del píxel.
 - **Medición en el navegador** (`posthog-js`, incluido session replay en páginas públicas): opt-in real tras el banner `analytics-consent-v2`. Hasta que el visitante acepta no se carga ni un byte; si rechaza, no se vuelve a preguntar. El embudo server-side no depende de esa elección.
 - El resto es `console.error` en los puntos donde se traga un fallo a propósito (persistencia del chat, webhook, envío de correo).
+- **En `apps/api` el registro de errores es una allowlist por campo, de servicio y no de un `catch`**: un filtro de excepciones global emite `err.name` y el código, buscado en `cause.code` y si no en `code`, y **nunca** `message`, `stack`, el objeto **ni `detail`**. Ése es el campo que hay que nombrar: `DrizzleQueryError` mete los parámetros ligados —con el correo— dentro de `message`, y un `DatabaseError` de `pg` sin envolver trae `detail` con `Key (email)=(alguien@ejemplo.test) already exists`. El código pasa además un guarda de forma (`/^[A-Za-z0-9_]{1,32}$/`), porque que `code` sea un identificador corto es convención de Node y de `pg`, no contrato. **El filtro no puede extender `BaseExceptionFilter`**: su `super.catch()` registra el objeto entero y mete `exception.message` en el cuerpo de la respuesta, reintroduciendo la fuga por dos vías.
+- El `catch` del webhook **se conserva** pese a existir el filtro global: el 200 que evita el bucle de reintentos de Paddle depende de capturar, así que ese error nunca llega al filtro.
+- **Al leer la tasa de 400 de `/v1/webhooks/paddle`** —la señal que vigila el desfase de reloj contra la ventana de 5 s de Paddle— hay que contar solo los que **no** dejan línea de `AllExceptionsFilter`. Los 400 de firma inválida son `BadRequestException` y el filtro no los registra; los de cuerpo malformado o demasiado grande sí, con `name=SyntaxError` o `name=PayloadTooLargeError`, y cualquiera desde internet puede inflarlos sin firma.
 
 ### Background jobs
 
@@ -367,6 +382,10 @@ Sin framework de tests: scripts de `assert` que se ejecutan con `node scripts/<a
 
 **A cambio, `check-curriculum-load.ts` escribe y borra**, en un repositorio cuyo público son principiantes que corren scripts con la `DATABASE_URL` que tengan en el entorno. Lee `CURRICULUM_TEST_DATABASE_URL`, aborta si falta, y se niega a correr si host+puerto+base **parseados** coinciden con `DATABASE_URL` — comparación sobre la URL parseada, no sobre la cadena: la misma base con `?sslmode=require` añadido no es igual como cadena y sí es la misma base. Cada escenario usa además su propio slug de currículo de prueba.
 
+**`apps/api` usa Vitest, no el estilo de la raíz.** `pnpm test` corre 59 tests en 6 ficheros (`*.spec.ts` junto al código, `test/*.e2e-spec.ts` con `Test.createTestingModule`). **`unplugin-swc` no es opcional**: el transformador por defecto de Vitest (esbuild) no emite metadatos de decorador y sin ellos la DI de NestJS no resuelve ningún provider. Los e2e exigen `API_TEST_DATABASE_URL`, abortan si falta y se niegan a correr si coincide con `DATABASE_URL` — mismo criterio de URL parseada que `check-curriculum-load.ts`. `pnpm check:access` corre el lado Next. Cada fichero declara en su cabecera qué filas de PRD-003 § 9 cubre, y cada `it()` lleva el número de fila en el nombre.
+
+Conviven dos estilos a propósito: migrar los nueve `check-*.ts` de la raíz a Vitest era un cambio aparte y PRD-003 lo dejó fuera de alcance.
+
 **El repositorio no tiene CI**: no hay `.github/workflows`. Las comprobaciones son locales y no forman parte del despliegue. `.github/` existe solo para `CODEOWNERS`.
 
 ### Entorno y despliegue
@@ -374,6 +393,13 @@ Sin framework de tests: scripts de `assert` que se ejecutan con `node scripts/<a
 Next.js 15 (App Router) + React 19 + TypeScript, `pnpm@11.4.0`, desplegado en Railway con el plugin de Postgres (`DATABASE_URL` inyectada). Migraciones con `drizzle-kit` (`pnpm db:generate` / `pnpm db:migrate`); cuatro migraciones hasta hoy. Claves solo de servidor salvo las `NEXT_PUBLIC_*` de Paddle y PostHog, que deben existir **en tiempo de build**.
 
 `CURRICULUM_SLUG` debe estar configurada en el servicio **antes** de desplegar: es obligatoria y sin defecto.
+
+**El repositorio es un workspace pnpm desde PRD-003** (`packages: ["apps/*"]`), con `apps/api` como único paquete y el servicio Next todavía en la raíz. Cuatro consecuencias que no son obvias:
+
+- **`tsconfig.json` de la raíz excluye `apps`.** Su `include` es `**/*.ts` y se tragaba `apps/api/src`, así que `next build` empezaba a typecheckear NestJS y fallaba con `TS1206`/`TS1241` sobre los decoradores, que ese tsconfig no habilita. Declarar `packages:` no solo engorda el build del servicio Next: sin el `exclude`, lo rompe.
+- **`apps/api` es CommonJS y no declara `"type": "module"`.** Con ESM, `tsc` emite igual (no hay `noEmitOnError`) y el arranque muere con `SyntaxError` sobre el esquema: TypeScript decide el formato por el `package.json` más cercano al **fuente** y Node por el más cercano a la **salida**, y el import cruzado a `src/lib/schema.ts` es donde divergen. Su `tsconfig` lleva `allowImportingTsExtensions` **y** `rewriteRelativeImportExtensions`, **sin** `rootDir`; el entrypoint emitido es `dist/apps/api/src/main.js`, no `dist/main.js`.
+- **`engines: node >=22.12` y `.nvmrc`.** Ser CommonJS obliga a `require(esm)` para cargar `@auth/core`, que es ESM puro (su export `./jwt` no tiene condición `require`), y esa capacidad va sin bandera desde 22.12. Antes de PRD-003 nada fijaba la versión de Node y la elegía el builder de Railway en cada rebuild.
+- **`drizzle-orm`, `pg`, `@paddle/paddle-node-sdk` y `posthog-node` están pineadas exactas en el `catalog:`** de `pnpm-workspace.yaml`, para la raíz **y** para `apps/api`. Dejan de flotar: actualizarlas es editar el catálogo, incluidas las de seguridad. Un catálogo que solo obedeciera a medio workspace no sería un pin: con la raíz en `^`, un patch la movería, el pin exacto no lo seguiría, y aparecerían dos instancias de `drizzle-orm` — con lo que `drizzle(pool, { schema })` deja de reconocer las tablas. Dos de esas versiones sostienen afirmaciones de PRD-003 que dependen de la versión: la rama `"sin evento"` del webhook es inalcanzable con `@paddle/paddle-node-sdk@3.8.0`, y la ventana de frescura de firma de 5 s es de esa misma versión.
 
 **La migración de `curriculum_nodes` lleva SQL editado a mano** (la cláusula `DEFERRABLE INITIALLY IMMEDIATE` sobre la restricción única nombrada y el `COMMENT ON COLUMN`): `drizzle-kit` no la emite desde `unique()` ni la modela en su instantánea, así que el parche vive solo en el `.sql` aplicado. Si alguien regenera esa restricción, `drizzle-kit` emitirá `DROP` + `ADD` **sin** la cláusula y la carga volverá a abortar al intercambiar un `slug`; `check-curriculum-load.ts` lo detecta afirmando `pg_constraint.condeferrable` directamente sobre el catálogo.
 
@@ -400,6 +426,7 @@ railway variables --service tutor-app --set CURRICULUM_SLUG=contextia
 
 | Date | PRD | Summary |
 |---|---|---|
+| 2026-07-28 | PRD-003 | El repositorio pasa a workspace pnpm y nace `apps/api` (NestJS, CommonJS): el dominio de acceso y cobro se porta ahí detrás de `ACCESS_VIA_API`, apagado por defecto. El puente de sesión reenvía el JWT de Auth.js y `apps/api` lo verifica con `getToken()`. El píxel anónimo deja de usar `AUTH_SECRET` como sal y falla cerrado sin `ANALYTICS_SALT`. Registro de errores por allowlist de campo en `apps/api`. |
 | 2026-07-28 | PRD-002 | El currículo pasa a ser un árbol en `curriculum_nodes`, proyectado desde `curriculum/contextia.json`. Se retiran `src/lib/lessons.ts` y `src/lib/program.ts`; nacen `curriculum-file.ts`, `curriculum-context.ts`, `curriculum.ts` y `scripts/load-curriculum.ts`. |
 | 2026-07-27 | — | Bootstrap desde el código (commit `f2b948e`); ningún PRD lo precede. |
 | 2026-07-27 | — | Se elimina `user.current_lesson`, columna muerta (migración `20260727233650_medical_blackheart`). |
