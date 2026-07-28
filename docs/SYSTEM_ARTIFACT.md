@@ -155,7 +155,7 @@ Forma canónica del adapter. `account` y `session` tienen `onDelete: cascade` co
 
 La frontera gratis/pago. Trial de 7 días sin tarjeta que **arranca con el primer mensaje al tutor**, no al hacer login: entrar a curiosear no gasta la prueba. Vencido el trial o cancelada la suscripción, el chat se sustituye por el muro de pago (Paddle).
 
-**Este dominio existe hoy por duplicado.** PRD-003 lo portó a `apps/api`, un servicio NestJS aparte, pero detrás de `ACCESS_VIA_API` **apagado por defecto**: lo que sirve en producción sigue siendo el camino en proceso de `src/lib/access.ts`. Las dos implementaciones escriben la misma tabla con las mismas sentencias idempotentes, así que conviven sin divergir. El camino viejo se retira en el paso 5 de la migración de PRD-003, no antes.
+**Este dominio existe hoy por duplicado, y el que sirve en producción es `apps/api`.** PRD-003 lo portó a un servicio NestJS aparte detrás de `ACCESS_VIA_API`; el flag **está encendido en producción desde el 2026-07-28** (paso 3 de la migración, verificado de punta a punta contra el servicio real). El código de `src/lib/access.ts` sigue en el repositorio y es el camino de rollback —apagar el flag lo reactiva sin desplegar— pero **no es el que atiende a los estudiantes**. Quien depure el acceso o el cobro tiene que mirar `apps/api`, no la raíz. Las dos implementaciones escriben la misma tabla con las mismas sentencias idempotentes, así que conviven sin divergir. El camino viejo se retira en el paso 5, no antes.
 
 ### Key Entities
 
@@ -185,7 +185,8 @@ El estado derivado que consume la app es `Access = { allowed, status: "none" \| 
 | Utilidades de dev: consultar / vencer un trial | `scripts/check-sub.mjs`, `scripts/expire-trial.mjs` | — |
 | Las tres anteriores, servidas por HTTP | `GET /v1/access`, `POST /v1/access/trial`, `POST /v1/webhooks/paddle` — `apps/api` | PRD-003 |
 | Puente de sesión entre servicios | `apps/web` reenvía el JWT de Auth.js como `Bearer`; `SessionGuard` lo verifica con `getToken()` de `@auth/core/jwt` | PRD-003 |
-| Conmutar entre el camino en proceso y el HTTP | `ACCESS_VIA_API` (apagado por defecto) — `src/lib/api-client.ts` | PRD-003 |
+| Conmutar entre el camino en proceso y el HTTP | `ACCESS_VIA_API` — **`true` en producción**; apagarlo es el rollback, sin desplegar. `src/lib/api-client.ts` | PRD-003 |
+| Alcanzar `apps/api` desde `apps/web` | `API_BASE_URL` = `http://api.railway.internal:8080` — red privada de Railway, **sin TLS**; ver `Open Debt` | PRD-003 |
 
 ### Key Invariants
 
@@ -208,6 +209,8 @@ El estado derivado que consume la app es `Access = { allowed, status: "none" \| 
 - **Tres comprobaciones del rollout de PRD-003 no son repetibles.** Que `/chat` renderice con historial y selector durante una degradación, que el 503 del tutor no emita `tutor_message_sent`, y que un 401 de `apps/api` no redirija a `/signin` se verifican **a mano** en el paso 3, porque afirman sobre render de Server Components y `next/headers`, que el runner de `scripts/` no puede ejecutar. Quien toque `src/app/chat/page.tsx` o `src/app/api/chat/route.ts` después de esta fase tiene que re-verificarlas a mano.
 - **`src/lib/pixel.ts` existe por una restricción de Next**, no por diseño: `shouldEmitPageview()` no puede exportarse desde `src/app/api/t/route.ts` porque un Route Handler solo admite exports de métodos HTTP y claves de configuración. PRD-003 no lo nombra.
 - **`PADDLE_TRACK_ENABLED` no se retira** en el paso 5 de la migración, que sí retira `ACCESS_VIA_API` y borra el handler que la variable gobierna. Queda pudriéndose en la configuración de Railway si nadie la quita.
+- **El puente entre servicios va por `http://`, no por TLS.** `API_BASE_URL` apunta a `api.railway.internal:8080`, la red privada de Railway, que aísla pero no cifra. Por ahí viajan el correo del estudiante y **el JWT de sesión**, que es una credencial portadora de ~30 días sin revocación individual. PRD-003 § 8 dice "solo sobre TLS", así que hoy la propiedad **no se cumple**: la sostiene el aislamiento de red, no el cifrado. Es una decisión pendiente, no un hecho aceptado — o se acepta conscientemente y se anota aquí como tal, o se termina TLS en `apps/api`. Urge decidirlo **antes del paso 4**, que cambia la topología exponiendo el servicio a internet.
+- **`apps/api` no tiene dominio público.** Es endurecimiento por encima de lo que PRD-003 § 1.1 exige, y es la razón real por la que el riesgo aceptado de "sin límite de tasa" (§ 8) todavía no ha mordido. **Esa protección caduca en el paso 4**, que obliga a exponerlo para que Paddle alcance el webhook.
 
 ---
 
