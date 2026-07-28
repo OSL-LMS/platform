@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { logout } from "./actions";
-import { LESSONS } from "@/lib/lessons";
+import type { LessonOption } from "@/lib/curriculum";
 import { formatMessage } from "@/lib/format-message";
 
 type Message = { role: "user" | "assistant"; content: string };
@@ -55,11 +55,18 @@ function MessageBody({ content }: { content: string }) {
 export default function ChatClient({
   initialMessages = [],
   trialDaysLeft = null,
+  lessons = [],
 }: {
   initialMessages?: Message[];
   trialDaysLeft?: number | null;
+  /** Solo `{slug, title}`: `payload.stuck` no tiene por qué viajar al cliente.
+   *  Vacío en la rama sin sesión, que no consulta la base de datos. */
+  lessons?: LessonOption[];
 }) {
-  const [lesson, setLesson] = useState("L1");
+  // La selección inicial sale del currículo, no del literal "L1" que estaba
+  // escrito a mano: el `slug` es mutable, y un adoptante sin ningún "L1" tenía
+  // el selector roto desde el primer día.
+  const [lesson, setLesson] = useState(lessons[0]?.slug ?? "");
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -142,10 +149,14 @@ export default function ChatClient({
           <label className="chat__lesson">
             <span className="chat__lesson-full">¿En qué lección vas?</span>
             <span className="chat__lesson-short">Lección:</span>
-            <select value={lesson} onChange={(e) => setLesson(e.target.value)}>
-              {LESSONS.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.id} — {l.title}
+            <select
+              value={lesson}
+              onChange={(e) => setLesson(e.target.value)}
+              disabled={lessons.length === 0}
+            >
+              {lessons.map((l) => (
+                <option key={l.slug} value={l.slug}>
+                  {l.slug} — {l.title}
                 </option>
               ))}
             </select>

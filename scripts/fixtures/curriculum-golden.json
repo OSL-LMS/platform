@@ -1,0 +1,109 @@
+{
+  "capturedFrom": "src/lib/lessons.ts + src/lib/program.ts",
+  "lessonContext": {
+    "": "Contexto de la sesión (inyectado por la plataforma).\n\nMódulo en curso: \"Tu primera semana como developer\". Tus estudiantes son principiantes absolutos: están publicando su primera página web con GitHub Pages, leyendo su primer HTML y CSS, y usando la terminal y git por primera vez en su vida.\nLecciones del módulo: L1 Hoy publicas en internet · L2 Leer código, antes de escribirlo · L3 Que se vea como tú quieres · L4 La terminal sin miedo · L5 Git: tu trabajo, a salvo y con historia · L6 Tu primer código ajeno que funciona · L7 La evidencia y el ritual.\n\nEl estudiante no ha declarado en qué lección va: pregúntaselo antes de ayudarlo.",
+    "L1": "Contexto de la sesión (inyectado por la plataforma).\n\nMódulo en curso: \"Tu primera semana como developer\". Tus estudiantes son principiantes absolutos: están publicando su primera página web con GitHub Pages, leyendo su primer HTML y CSS, y usando la terminal y git por primera vez en su vida.\nLecciones del módulo: L1 Hoy publicas en internet · L2 Leer código, antes de escribirlo · L3 Que se vea como tú quieres · L4 La terminal sin miedo · L5 Git: tu trabajo, a salvo y con historia · L6 Tu primer código ajeno que funciona · L7 La evidencia y el ritual.\n\nEl estudiante va en la Lección L1, \"Hoy publicas en internet\" — al terminarla, publicas tu web con tu nombre.\nDe qué va y qué se le atasca (úsalo para formular mejores preguntas, no para recitar soluciones): publicar con GitHub Pages. Errores frecuentes: nombre de usuario con mayúsculas o espacios; el repositorio no se llama exactamente `usuario.github.io` (un typo aquí causa el 404 más común del curso); no esperar los minutos del primer despliegue; no encontrar «Use this template» por no tener sesión iniciada.",
+    "L2": "Contexto de la sesión (inyectado por la plataforma).\n\nMódulo en curso: \"Tu primera semana como developer\". Tus estudiantes son principiantes absolutos: están publicando su primera página web con GitHub Pages, leyendo su primer HTML y CSS, y usando la terminal y git por primera vez en su vida.\nLecciones del módulo: L1 Hoy publicas en internet · L2 Leer código, antes de escribirlo · L3 Que se vea como tú quieres · L4 La terminal sin miedo · L5 Git: tu trabajo, a salvo y con historia · L6 Tu primer código ajeno que funciona · L7 La evidencia y el ritual.\n\nEl estudiante va en la Lección L2, \"Leer código, antes de escribirlo\" — al terminarla, explicas tu primer código y lo cambias.\nDe qué va y qué se le atasca (úsalo para formular mejores preguntas, no para recitar soluciones): leer y editar HTML. Errores frecuentes: borrar sin querer un `<`, `>` o `/` y romper la página; no recargar con fuerza; confundir comentarios con código; miedo a tocar.",
+    "L3": "Contexto de la sesión (inyectado por la plataforma).\n\nMódulo en curso: \"Tu primera semana como developer\". Tus estudiantes son principiantes absolutos: están publicando su primera página web con GitHub Pages, leyendo su primer HTML y CSS, y usando la terminal y git por primera vez en su vida.\nLecciones del módulo: L1 Hoy publicas en internet · L2 Leer código, antes de escribirlo · L3 Que se vea como tú quieres · L4 La terminal sin miedo · L5 Git: tu trabajo, a salvo y con historia · L6 Tu primer código ajeno que funciona · L7 La evidencia y el ritual.\n\nEl estudiante va en la Lección L3, \"Que se vea como tú quieres\" — al terminarla, tu página, con tu diseño.\nDe qué va y qué se le atasca (úsalo para formular mejores preguntas, no para recitar soluciones): CSS. Errores frecuentes: el cambio no se ve (caché — recargar con `Ctrl+Shift+R` / `Cmd+Shift+R`); borrar un `;` o `}` y perder todos los estilos (el historial del archivo en GitHub permite comparar); contraste ilegible.",
+    "L4": "Contexto de la sesión (inyectado por la plataforma).\n\nMódulo en curso: \"Tu primera semana como developer\". Tus estudiantes son principiantes absolutos: están publicando su primera página web con GitHub Pages, leyendo su primer HTML y CSS, y usando la terminal y git por primera vez en su vida.\nLecciones del módulo: L1 Hoy publicas en internet · L2 Leer código, antes de escribirlo · L3 Que se vea como tú quieres · L4 La terminal sin miedo · L5 Git: tu trabajo, a salvo y con historia · L6 Tu primer código ajeno que funciona · L7 La evidencia y el ritual.\n\nEl estudiante va en la Lección L4, \"La terminal sin miedo\" — al terminarla, te mueves por tu máquina como developer.\nDe qué va y qué se le atasca (úsalo para formular mejores preguntas, no para recitar soluciones): la terminal. Errores frecuentes: miedo inicial; perderse entre carpetas (no saber «dónde estoy»); diferencias entre Windows y Mac.",
+    "L5": "Contexto de la sesión (inyectado por la plataforma).\n\nMódulo en curso: \"Tu primera semana como developer\". Tus estudiantes son principiantes absolutos: están publicando su primera página web con GitHub Pages, leyendo su primer HTML y CSS, y usando la terminal y git por primera vez en su vida.\nLecciones del módulo: L1 Hoy publicas en internet · L2 Leer código, antes de escribirlo · L3 Que se vea como tú quieres · L4 La terminal sin miedo · L5 Git: tu trabajo, a salvo y con historia · L6 Tu primer código ajeno que funciona · L7 La evidencia y el ritual.\n\nEl estudiante va en la Lección L5, \"Git: tu trabajo, a salvo y con historia\" — al terminarla, tu repositorio con historia de verdad.\nDe qué va y qué se le atasca (úsalo para formular mejores preguntas, no para recitar soluciones): git local. Es la lección con más fricción del módulo: instalación según sistema operativo, autenticación con GitHub, el flujo add → commit → push.",
+    "L6": "Contexto de la sesión (inyectado por la plataforma).\n\nMódulo en curso: \"Tu primera semana como developer\". Tus estudiantes son principiantes absolutos: están publicando su primera página web con GitHub Pages, leyendo su primer HTML y CSS, y usando la terminal y git por primera vez en su vida.\nLecciones del módulo: L1 Hoy publicas en internet · L2 Leer código, antes de escribirlo · L3 Que se vea como tú quieres · L4 La terminal sin miedo · L5 Git: tu trabajo, a salvo y con historia · L6 Tu primer código ajeno que funciona · L7 La evidencia y el ritual.\n\nEl estudiante va en la Lección L6, \"Tu primer código ajeno que funciona\" — al terminarla, integras y corriges código que no escribiste.\nDe qué va y qué se le atasca (úsalo para formular mejores preguntas, no para recitar soluciones): integrar un fragmento de JavaScript ajeno (el botón de modo oscuro); romperlo a propósito y arreglarlo es parte del ejercicio. **En esta lección no se enseña JavaScript**: si pregunta por `const`, funciones o eventos, responde en una frase que eso llega en el módulo siguiente y que hoy le basta con lo que intuye del fragmento.",
+    "L7": "Contexto de la sesión (inyectado por la plataforma).\n\nMódulo en curso: \"Tu primera semana como developer\". Tus estudiantes son principiantes absolutos: están publicando su primera página web con GitHub Pages, leyendo su primer HTML y CSS, y usando la terminal y git por primera vez en su vida.\nLecciones del módulo: L1 Hoy publicas en internet · L2 Leer código, antes de escribirlo · L3 Que se vea como tú quieres · L4 La terminal sin miedo · L5 Git: tu trabajo, a salvo y con historia · L6 Tu primer código ajeno que funciona · L7 La evidencia y el ritual.\n\nEl estudiante va en la Lección L7, \"La evidencia y el ritual\" — al terminarla, tu primera pieza de portafolio, defendida.\nDe qué va y qué se le atasca (úsalo para formular mejores preguntas, no para recitar soluciones): el cierre del módulo: checklist del micro-hito y presentación en su crew."
+  },
+  "program": [
+    {
+      "id": "E1",
+      "name": "Fundamentos",
+      "built": "Tu primera web publicada en internet y una aplicación de consola. JavaScript primero; Python como segundo idioma. Sin asistentes de código: los fundamentos son la base del juicio.",
+      "aiRole": "solo el tutor socrático — escribes a mano",
+      "milestone": "H1",
+      "hours": 160,
+      "status": "en-emision",
+      "statusLabel": "EN EMISIÓN — T0",
+      "modules": [
+        "Tu primera semana como developer",
+        "Pensar en código",
+        "Estructuras y problemas",
+        "El código de otros",
+        "Segundo idioma"
+      ],
+      "stageData": "H1 · ~160 h · 5 módulos",
+      "hasDetails": true
+    },
+    {
+      "id": "E2",
+      "name": "Construcción",
+      "built": "Una aplicación full-stack en producción — TypeScript, React, Node, PostgreSQL — con al menos un usuario real que no eres tú. Y tu primera pull request a un proyecto open source real: la plataforma de la escuela, que construyen los propios estudiantes.",
+      "aiRole": "copiloto, con delegación documentada",
+      "milestone": "H2",
+      "hours": 260,
+      "status": "disenada",
+      "statusLabel": "DISEÑADA — SE EMITE EN DIRECTO",
+      "modules": [
+        "Frontend real",
+        "Backend y datos",
+        "Producción",
+        "Integrar IA en productos",
+        "Proyecto eje"
+      ],
+      "stageData": "H2 · ~260 h · 5 módulos",
+      "hasDetails": true
+    },
+    {
+      "id": "E3",
+      "name": "Auditoría",
+      "built": "El rescate: recibes una base de código ajena, defectuosa y sin documentación — humano e IA mezclados — y la auditas, testeas, documentas y mejoras sin romperla. La etapa que no encontrarás en otra escuela.",
+      "aiRole": "la IA es el objeto de auditoría",
+      "milestone": "H3",
+      "hours": 140,
+      "status": "en-diseno",
+      "statusLabel": "EN DISEÑO",
+      "modules": null,
+      "stageData": "H3 · ~140 h",
+      "hasDetails": false
+    },
+    {
+      "id": "E4",
+      "name": "Síntesis",
+      "built": "Un encargo con requisitos deliberadamente ambiguos de un cliente real: negocias el alcance, construyes orquestando agentes de IA y entregas en producción defendiendo cada decisión.",
+      "aiRole": "fuerza de trabajo orquestada",
+      "milestone": "H4",
+      "hours": 150,
+      "status": "en-diseno",
+      "statusLabel": "EN DISEÑO",
+      "modules": null,
+      "stageData": "H4 · ~150 h",
+      "hasDetails": false
+    }
+  ],
+  "lessonOptions": [
+    {
+      "slug": "L1",
+      "title": "Hoy publicas en internet"
+    },
+    {
+      "slug": "L2",
+      "title": "Leer código, antes de escribirlo"
+    },
+    {
+      "slug": "L3",
+      "title": "Que se vea como tú quieres"
+    },
+    {
+      "slug": "L4",
+      "title": "La terminal sin miedo"
+    },
+    {
+      "slug": "L5",
+      "title": "Git: tu trabajo, a salvo y con historia"
+    },
+    {
+      "slug": "L6",
+      "title": "Tu primer código ajeno que funciona"
+    },
+    {
+      "slug": "L7",
+      "title": "La evidencia y el ritual"
+    }
+  ]
+}

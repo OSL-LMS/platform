@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { TUTOR_SYSTEM_PROMPT } from "@/lib/tutor-prompt";
-import { buildLessonContext } from "@/lib/lessons";
+import { buildLessonContext } from "@/lib/curriculum-context";
+import { curriculumSlug, getLessonContextInputs } from "@/lib/curriculum";
 import { auth } from "@/auth";
 import { ensureTrial } from "@/lib/access";
 import { track } from "@/lib/analytics";
@@ -14,6 +15,12 @@ import {
 const client = new Anthropic();
 
 const TUTOR_MODEL = "claude-sonnet-4-6";
+
+// `body.lesson` sigue siendo entrada no confiable y sigue sin interpolarse
+// nunca en el prompt. Lo que cambia con PRD-002 es el COSTE de usarlo como
+// clave: antes era un `Array.find` sobre 7 elementos en memoria; ahora puede
+// ser un viaje a Postgres. Lo que no encaje se descarta ANTES de tocar la base.
+const LESSON_SLUG_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 
@@ -46,12 +53,17 @@ export async function POST(req: Request) {
     return Response.json({ error: "Missing messages" }, { status: 400 });
   }
 
+  const lesson =
+    typeof body.lesson === "string" && LESSON_SLUG_PATTERN.test(body.lesson)
+      ? body.lesson
+      : undefined;
+
   // Paso intermedio del embudo. Se emite al ACEPTAR el mensaje, no al cerrar el
   // stream: lo que medimos aquí es que el estudiante habló con el tutor, y eso
   // ya pasó aunque Anthropic falle a mitad de la respuesta.
   track(email, "tutor_message_sent", {
     access_status: access.status,
-    lesson: body.lesson ?? null,
+    lesson: lesson ?? null,
   });
 
   // Conversación del usuario (la más reciente o una nueva vacía). La
@@ -64,8 +76,16 @@ export async function POST(req: Request) {
 
   // Prompt estable (cacheado) + temario como bloque aparte, igual que en el
   // runner de evals. El prompt no sabe nada del curso: el módulo, las lecciones
-  // y los atascos típicos son dato y viajan aquí, así que una clase nueva es una
-  // fila en `lessons.ts` y no una versión del tutor.
+  // y los atascos típicos son dato y viajan aquí, así que una clase nueva es un
+  // nodo en `curriculum/<slug>.json` y no una versión del tutor.
+  //
+  // El índice de lecciones se acota AL MÓDULO de la lección declarada. Con el
+  // currículo entero, la línea "Lecciones del módulo:" pasaría a listar todo el
+  // temario mal etiquetado en cuanto un segundo módulo reciba su primera clase.
+  const { moduleLessons, ancestors } = await getLessonContextInputs(
+    curriculumSlug(),
+    lesson
+  );
   const system: Anthropic.TextBlockParam[] = [
     {
       type: "text",
@@ -74,7 +94,7 @@ export async function POST(req: Request) {
     },
     {
       type: "text",
-      text: buildLessonContext(body.lesson),
+      text: buildLessonContext(moduleLessons, ancestors, lesson),
     },
   ];
 

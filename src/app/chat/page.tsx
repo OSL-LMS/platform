@@ -7,6 +7,7 @@
 import { auth } from "@/auth";
 import { loadConversation } from "@/lib/conversations";
 import { getAccess } from "@/lib/access";
+import { curriculumSlug, getLessons, toLessonOptions } from "@/lib/curriculum";
 import ChatClient from "../chat-client";
 import Paywall from "../paywall";
 
@@ -33,10 +34,12 @@ export default async function ChatPage() {
   }
 
   const initialMessages = await loadConversation(userId);
+  const lessons = toLessonOptions(await getLessons(curriculumSlug()));
   return (
     <ChatClient
       initialMessages={initialMessages}
       trialDaysLeft={access.trialDaysLeft}
+      lessons={lessons}
     />
   );
 }

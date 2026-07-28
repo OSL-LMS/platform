@@ -18,6 +18,9 @@ import {
   pgEnum,
   uuid,
   jsonb,
+  unique,
+  index,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 
@@ -142,6 +145,48 @@ export const registrations = pgTable("registrations", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 
+// El currículo como árbol de profundidad libre (PRD-002). La tabla es una
+// PROYECCIÓN de `curriculum/<slug>.json`, que es la fuente de verdad autoral:
+// el único escritor en el entorno desplegado es `scripts/load-curriculum.ts`.
+//
+// `id` lo aporta el archivo y ES la identidad del nodo: sobrevive a recargas,
+// reordenamientos, cambios de padre y renombrados de `slug`. `slug` es una
+// etiqueta pública y MUTABLE.
+export const curriculumNodes = pgTable(
+  "curriculum_nodes",
+  {
+    id: uuid("id").primaryKey(),
+    // AVISO: no hay aislamiento entre currículos. Este valor sale de
+    // CURRICULUM_SLUG (configuración de servidor) y NUNCA del request.
+    curriculum: text("curriculum").notNull(),
+    parentId: uuid("parent_id").references((): AnyPgColumn => curriculumNodes.id, {
+      onDelete: "cascade",
+    }),
+    kind: text("kind").notNull(),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    position: integer("position").notNull(),
+    payload: jsonb("payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (node) => [
+    // Nombre estable a propósito: el cargador hace `SET CONSTRAINTS
+    // curriculum_nodes_curriculum_slug_key DEFERRED` y necesita a qué apuntar.
+    // La cláusula DEFERRABLE se aplica a mano en el SQL de la migración —
+    // drizzle-kit no la emite (PRD-002 §6.1).
+    unique("curriculum_nodes_curriculum_slug_key").on(node.curriculum, node.slug),
+    index("curriculum_nodes_parent_position_idx").on(
+      node.curriculum,
+      node.parentId,
+      node.position
+    ),
+  ]
+);
+
 // ---------------------------------------------------------------------------
 // Tipos inferidos (cómodos para los agentes de auth y persistencia)
 // ---------------------------------------------------------------------------
@@ -154,3 +199,5 @@ export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
 export type Registration = typeof registrations.$inferSelect;
 export type NewRegistration = typeof registrations.$inferInsert;
+export type CurriculumNodeRow = typeof curriculumNodes.$inferSelect;
+export type NewCurriculumNodeRow = typeof curriculumNodes.$inferInsert;

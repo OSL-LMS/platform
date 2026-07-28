@@ -9,7 +9,9 @@
     "build": "next build",
     "start": "next start -p ${PORT:-3000}",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "curriculum:load": "node scripts/load-curriculum.ts",
+    "curriculum:check": "node scripts/check-curriculum-golden.ts && node scripts/check-curriculum.ts && node scripts/check-lessons.ts && node scripts/check-schedule.ts && node scripts/check-curriculum-identity.ts && node scripts/check-curriculum-load.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.0",

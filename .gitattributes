@@ -1,0 +1,19 @@
+# Código y documentación son SIEMPRE texto, aunque git crea otra cosa.
+#
+# El disparador: PRD-002 añadió a `curriculum-file.ts` un validador de URLs que
+# habla de caracteres de control, y al escribirlos literales en un comentario y
+# en las cadenas de prueba, git marcó el archivo como binario. `git diff` decía
+# "Binary files differ", GitHub decía "Binary file not shown" y `grep` lo
+# saltaba en silencio — es decir, el archivo que implementa un control
+# compensatorio quedó ilegible justo en la revisión de PR de la que ese control
+# depende.
+#
+# Hacen falta los DOS atributos. `text` gobierna la conversión de fin de línea;
+# lo que fuerza a git a diferenciar como texto un blob que contiene un byte NUL
+# es `diff`. Con `text` a secas el diff seguía saliendo "Binary files differ".
+*.ts   text diff
+*.tsx  text diff
+*.mjs  text diff
+*.md   text diff
+*.json text diff
+*.sql  text diff

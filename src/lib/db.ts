@@ -14,7 +14,9 @@
 
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import * as schema from "./schema";
+// Ruta relativa CON extensión: Next la resuelve igual, y así este módulo (y lo
+// que lo importe) arranca bajo `node scripts/…` sin bundler. Ver PRD-002 §9.
+import * as schema from "./schema.ts";
 
 const connectionString =
   process.env.DATABASE_URL ??

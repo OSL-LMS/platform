@@ -1,10 +1,11 @@
+import { connection } from "next/server";
 import Link from "next/link";
 import LegalFooter from "./legal-footer";
 import TrackingPixel from "./tracking-pixel";
 import VodEmbed from "./vod-embed";
-import { LESSONS } from "@/lib/lessons";
-import { PROGRAM } from "@/lib/program";
-import { SEASON_SESSIONS, formatSessionDate, isPast, nextSession } from "@/lib/schedule";
+import { curriculumSlug, getCurriculumForest, getLessons } from "@/lib/curriculum";
+import { toStageViews } from "@/lib/curriculum-file";
+import { formatSessionDate, nextSession, seasonAgenda } from "@/lib/schedule";
 
 // Landing pública (raíz). Implementa `60 Negocio/Nueva home de academia.md`:
 // la home como escuela en marcha (concepto "el aula en vivo"), con el programa
@@ -25,7 +26,17 @@ export const revalidate = 600;
 
 const VOD_L1 = "https://www.youtube.com/watch?v=T6g1Ynm8r3c";
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Saca la página del prerender de BUILD: sin esto Next la renderizaría con
+  // `DATABASE_URL` ausente (db.ts cae a una cadena `placeholder`) y el build
+  // reventaría en cada despliegue, incluido el rollback. El caché que sustituye
+  // al de ruta completa vive en `curriculum.ts` (unstable_cache, TTL 600 s).
+  await connection();
+
+  const curriculum = curriculumSlug();
+  const stages = toStageViews(await getCurriculumForest(curriculum));
+  const season = seasonAgenda(await getLessons(curriculum));
+
   const next = nextSession();
   const agenda = next
     ? `Próxima clase — ${formatSessionDate(next)} · 20:00 Colombia · en Twitch`
@@ -192,10 +203,12 @@ toggle.addEventListener("click", () => {
             </p>
 
             <div className="stage-map">
-              {PROGRAM.map((stage) => (
+              {stages.map((stage) => (
                 <article key={stage.id} className={`stage${stage.status === "en-emision" ? " stage--here" : ""}`}>
                   <div>
-                    <p className="stage__num">{stage.id}</p>
+                    {/* El texto visible sale del `slug`; `stage.id` es un UUID
+                        y solo vale como `key` de React y llave de progreso. */}
+                    <p className="stage__num">{stage.num}</p>
                     {stage.status === "en-emision" && <p className="stage__here">● Estás aquí</p>}
                   </div>
                   <div>
@@ -250,15 +263,15 @@ toggle.addEventListener("click", () => {
             </p>
             <table className="season">
               <tbody>
-                {SEASON_SESSIONS.map((session) => {
-                  const lesson = LESSONS.find((l) => l.id === session.lessonId)!;
-                  const emitted = isPast(session);
-                  const isNext = next?.lessonId === session.lessonId;
+                {/* `title` y `outcome` vienen vacíos si la lección todavía no
+                    está cargada: el calendario viaja con el código y el temario
+                    se carga aparte. La fila degrada, la página no se cae. */}
+                {season.map(({ session, title, outcome, emitted, isNext }) => {
                   return (
-                    <tr key={session.lessonId} className={isNext ? "season__next" : undefined}>
-                      <td className="season__id">{session.lessonId}</td>
-                      <td className="season__title">{lesson.title}</td>
-                      <td className="season__outcome">{lesson.outcome}</td>
+                    <tr key={session.lessonSlug} className={isNext ? "season__next" : undefined}>
+                      <td className="season__id">{session.lessonSlug}</td>
+                      <td className="season__title">{title}</td>
+                      <td className="season__outcome">{outcome}</td>
                       <td className="season__status">
                         {emitted ? (
                           session.vodUrl ? (

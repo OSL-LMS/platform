@@ -1,0 +1,15 @@
+# Propietarios de código. GitHub exige su aprobación para mergear un PR que
+# toque estas rutas (requiere activar "Require review from Code Owners" en la
+# protección de rama; sin eso este archivo solo sugiere revisores).
+#
+# El currículo está aquí por una razón concreta (PRD-002 §8.1): `stuck`,
+# `outcome`, `title` y `audience` viajan al bloque de system del tutor en cada
+# petición. Antes esos textos vivían en `src/lib/lessons.ts` y un cambio
+# convocaba atención de revisor de código; ahora son copy en JSON y convocan
+# atención de corrector de estilo. Mismo destino, menos escrutinio — y la
+# escalera de contribución pone a otro estudiante como primer filtro.
+curriculum/**            @angelkurten
+
+# El prompt certificado y el bloque que lo acompaña, por lo mismo.
+src/lib/tutor-prompt.ts  @angelkurten
+src/lib/curriculum-context.ts @angelkurten
