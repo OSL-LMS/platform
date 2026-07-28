@@ -1,0 +1,219 @@
+{
+  "curriculum": "contextia",
+  "nodes": [
+    {
+      "id": "9f2c1a84-3b7e-4c11-8a55-1d0e6f4b2c73",
+      "slug": "E1",
+      "kind": "stage",
+      "title": "Fundamentos",
+      "payload": {
+        "built": "Tu primera web publicada en internet y una aplicación de consola. JavaScript primero; Python como segundo idioma. Sin asistentes de código: los fundamentos son la base del juicio.",
+        "aiRole": "solo el tutor socrático — escribes a mano",
+        "milestone": "H1",
+        "hours": 160,
+        "status": "en-emision",
+        "statusLabel": "EN EMISIÓN — T0",
+        "hasDetail": true,
+        "scope": "Certifica H1 (Fundamentos): programa y lee código con solvencia propia. Lenguaje: JavaScript primero, con resultado visible en el navegador desde el día 1, y Python como segundo lenguaje ligero al final de la etapa para consolidar que ya sabe programar, no un lenguaje. Entra: terminal, git básico, variables, control de flujo, funciones, datos, arrays, objetos, iteración, descomposición de problemas, debugging como disciplina explícita (hipótesis → prueba → descarte), convenciones y olores de código básicos, lectura de un repositorio pequeño real. No entra: asistentes de código — el estudiante escribe a mano toda la etapa; sí lee código generado por IA desde el módulo 4, como objeto de análisis. Defensa: resuelve un problema nuevo en vivo verbalizando su razonamiento, traza código que no escribió y explica una pieza de su propio proyecto elegida por el mentor."
+      },
+      "children": [
+        {
+          "id": "b41d77e0-9a2c-4f38-b6d1-5c8e0a3f7241",
+          "slug": "primera-semana",
+          "kind": "module",
+          "title": "Tu primera semana como developer",
+          "payload": {
+            "audience": "principiantes absolutos: están publicando su primera página web con GitHub Pages, leyendo su primer HTML y CSS, y usando la terminal y git por primera vez en su vida"
+          },
+          "children": [
+            {
+              "id": "c2a9f018-6d4b-4e57-9f3a-8b1c7e05d962",
+              "slug": "L1",
+              "kind": "lesson",
+              "title": "Hoy publicas en internet",
+              "payload": {
+                "outcome": "publicas tu web con tu nombre",
+                "stuck": "publicar con GitHub Pages. Errores frecuentes: nombre de usuario con mayúsculas o espacios; el repositorio no se llama exactamente `usuario.github.io` (un typo aquí causa el 404 más común del curso); no esperar los minutos del primer despliegue; no encontrar «Use this template» por no tener sesión iniciada."
+              }
+            },
+            {
+              "id": "ddd3af1e-9f46-430e-8437-22f4e4e652e4",
+              "slug": "L2",
+              "kind": "lesson",
+              "title": "Leer código, antes de escribirlo",
+              "payload": {
+                "outcome": "explicas tu primer código y lo cambias",
+                "stuck": "leer y editar HTML. Errores frecuentes: borrar sin querer un `<`, `>` o `/` y romper la página; no recargar con fuerza; confundir comentarios con código; miedo a tocar."
+              }
+            },
+            {
+              "id": "2ad66d09-0d48-4c74-a8e7-789024c36195",
+              "slug": "L3",
+              "kind": "lesson",
+              "title": "Que se vea como tú quieres",
+              "payload": {
+                "outcome": "tu página, con tu diseño",
+                "stuck": "CSS. Errores frecuentes: el cambio no se ve (caché — recargar con `Ctrl+Shift+R` / `Cmd+Shift+R`); borrar un `;` o `}` y perder todos los estilos (el historial del archivo en GitHub permite comparar); contraste ilegible."
+              }
+            },
+            {
+              "id": "4a831b67-0836-42f9-a7ac-1e1e24866030",
+              "slug": "L4",
+              "kind": "lesson",
+              "title": "La terminal sin miedo",
+              "payload": {
+                "outcome": "te mueves por tu máquina como developer",
+                "stuck": "la terminal. Errores frecuentes: miedo inicial; perderse entre carpetas (no saber «dónde estoy»); diferencias entre Windows y Mac."
+              }
+            },
+            {
+              "id": "d11bcb89-f914-42f7-96bd-de4837e6e847",
+              "slug": "L5",
+              "kind": "lesson",
+              "title": "Git: tu trabajo, a salvo y con historia",
+              "payload": {
+                "outcome": "tu repositorio con historia de verdad",
+                "stuck": "git local. Es la lección con más fricción del módulo: instalación según sistema operativo, autenticación con GitHub, el flujo add → commit → push."
+              }
+            },
+            {
+              "id": "7d056439-b985-40c8-8877-f5af1c5036f1",
+              "slug": "L6",
+              "kind": "lesson",
+              "title": "Tu primer código ajeno que funciona",
+              "payload": {
+                "outcome": "integras y corriges código que no escribiste",
+                "stuck": "integrar un fragmento de JavaScript ajeno (el botón de modo oscuro); romperlo a propósito y arreglarlo es parte del ejercicio. **En esta lección no se enseña JavaScript**: si pregunta por `const`, funciones o eventos, responde en una frase que eso llega en el módulo siguiente y que hoy le basta con lo que intuye del fragmento."
+              }
+            },
+            {
+              "id": "330a087f-2d37-4aef-9ce7-02dc48725053",
+              "slug": "L7",
+              "kind": "lesson",
+              "title": "La evidencia y el ritual",
+              "payload": {
+                "outcome": "tu primera pieza de portafolio, defendida",
+                "stuck": "el cierre del módulo: checklist del micro-hito y presentación en su crew."
+              }
+            }
+          ]
+        },
+        {
+          "id": "7e5b3c92-1f80-4a6d-b2c4-9d3e8f01a5b7",
+          "slug": "pensar-en-codigo",
+          "kind": "module",
+          "title": "Pensar en código",
+          "children": []
+        },
+        {
+          "id": "a6daaa2a-4b94-4e9d-90fc-c9274a8da2ad",
+          "slug": "estructuras-y-problemas",
+          "kind": "module",
+          "title": "Estructuras y problemas",
+          "children": []
+        },
+        {
+          "id": "c4094fb5-0f2d-4489-b28d-3f68434ad313",
+          "slug": "el-codigo-de-otros",
+          "kind": "module",
+          "title": "El código de otros",
+          "children": []
+        },
+        {
+          "id": "83881716-1284-45fd-906b-70d4f729244a",
+          "slug": "segundo-idioma",
+          "kind": "module",
+          "title": "Segundo idioma",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "1001dbd8-fc2c-4efb-b251-c89a2b473d75",
+      "slug": "E2",
+      "kind": "stage",
+      "title": "Construcción",
+      "payload": {
+        "built": "Una aplicación full-stack en producción — TypeScript, React, Node, PostgreSQL — con al menos un usuario real que no eres tú. Y tu primera pull request a un proyecto open source real: la plataforma de la escuela, que construyen los propios estudiantes.",
+        "aiRole": "copiloto, con delegación documentada",
+        "milestone": "H2",
+        "hours": 260,
+        "status": "disenada",
+        "statusLabel": "DISEÑADA — SE EMITE EN DIRECTO",
+        "hasDetail": true,
+        "scope": "Certifica H2 (Builder): construye y despliega aplicaciones completas. Lenguaje y stack: TypeScript, React, Node.js, PostgreSQL y despliegue en plataforma cloud — el stack mayoritario del mercado hispanohablante remoto, revisado anualmente. Entra: HTML/CSS/React, estado, consumo de APIs, API REST con Node, modelado y PostgreSQL, autenticación, despliegue, variables de entorno, logs, errores de usuarios reales, y consumir APIs de LLMs en una funcionalidad. No entra: construir modelos de IA — el egresado los integra, no los construye, y ese es el límite del perfil. El asistente de código se introduce aquí bajo protocolo de delegación documentada: qué se delegó, por qué y cómo se validó. Defensa: demo del proyecto en producción, modificación de una funcionalidad en vivo a petición del mentor e interrogatorio sobre las decisiones de delegación documentadas."
+      },
+      "children": [
+        {
+          "id": "fca8390b-d527-441f-b48a-e8e313fda608",
+          "slug": "frontend-real",
+          "kind": "module",
+          "title": "Frontend real",
+          "children": []
+        },
+        {
+          "id": "efaf297f-1bf4-4132-beaf-0cd626fe5be7",
+          "slug": "backend-y-datos",
+          "kind": "module",
+          "title": "Backend y datos",
+          "children": []
+        },
+        {
+          "id": "a3d00afd-d056-4248-a0d5-46785c0dcf54",
+          "slug": "produccion",
+          "kind": "module",
+          "title": "Producción",
+          "children": []
+        },
+        {
+          "id": "b2a0e4b1-3a01-4020-ba33-7aa66b2250f6",
+          "slug": "integrar-ia-en-productos",
+          "kind": "module",
+          "title": "Integrar IA en productos",
+          "children": []
+        },
+        {
+          "id": "72ab9e2e-d687-4247-a943-54e89046f187",
+          "slug": "proyecto-eje",
+          "kind": "module",
+          "title": "Proyecto eje",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "1a8f4d63-2c07-4b95-8e1f-6a2b9c4d70e3",
+      "slug": "E3",
+      "kind": "stage",
+      "title": "Auditoría",
+      "payload": {
+        "built": "El rescate: recibes una base de código ajena, defectuosa y sin documentación — humano e IA mezclados — y la auditas, testeas, documentas y mejoras sin romperla. La etapa que no encontrarás en otra escuela.",
+        "aiRole": "la IA es el objeto de auditoría",
+        "milestone": "H3",
+        "hours": 140,
+        "status": "en-diseno",
+        "statusLabel": "EN DISEÑO",
+        "hasDetail": false,
+        "scope": "Certifica H3 (Reviewer): el estudiante deja de construir lo suyo y se sumerge en código ajeno — el escenario real de cualquier empleo y del trabajo con IA. Entra: code review profesional (rúbricas, comunicación de feedback, revisión de pull requests reales, peer review dentro del crew), patología del código generado (supuestos silenciosos, casos borde ignorados, seguridad descuidada, sobre-ingeniería plausible), testing como herramienta de auditoría — escribir tests para código ajeno antes de tocarlo — y el proyecto de rescate de una base de código mediana, defectuosa y sin documentación. No entra: construir producto propio nuevo. El rol de la IA se invierte: es el objeto de auditoría, y el tutor reduce andamiaje — en E3 solo pregunta, ya no da pistas. Defensa: review en vivo de un PR con bugs sutiles plantados y presentación del informe de auditoría del proyecto de rescate."
+      },
+      "children": []
+    },
+    {
+      "id": "b8ede0f3-01a6-48cb-af4c-6011d763ff40",
+      "slug": "E4",
+      "kind": "stage",
+      "title": "Síntesis",
+      "payload": {
+        "built": "Un encargo con requisitos deliberadamente ambiguos de un cliente real: negocias el alcance, construyes orquestando agentes de IA y entregas en producción defendiendo cada decisión.",
+        "aiRole": "fuerza de trabajo orquestada",
+        "milestone": "H4",
+        "hours": 150,
+        "status": "en-diseno",
+        "statusLabel": "EN DISEÑO",
+        "hasDetail": false,
+        "scope": "Certifica H4 (Developer aumentado): integra las seis competencias del perfil en condiciones realistas — ambigüedad, alcance que se negocia y la IA como fuerza de trabajo orquestada. Entra: orquestación de agentes (descomponer trabajo en tareas delegables, dar contexto eficaz, iterar y supervisar, y cuándo no delegar), pensar en sistemas (arquitectura básica, trade-offs, «¿qué pasa con 100× usuarios?», deuda técnica deliberada) y el proyecto final con requisitos deliberadamente ambiguos entregados por un cliente. No entra: nada de lo anterior se reintroduce como tema — se da por dominado. El uso de IA es pleno y profesional: se evalúa la calidad de la dirección, no la cantidad de código manual. Defensa integral ante dos mentores: presentación del proyecto final, depuración en vivo de un error inyectado, defensa de las decisiones de arquitectura y de delegación, y review de código ajeno nunca visto."
+      },
+      "children": []
+    }
+  ]
+}

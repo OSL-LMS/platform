@@ -22,6 +22,13 @@
       "when": 1785195410468,
       "tag": "20260727233650_medical_blackheart",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785215723796,
+      "tag": "20260728051523_bright_kulan_gath",
+      "breakpoints": true
     }
   ]
 }

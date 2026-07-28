@@ -1,103 +1,28 @@
-"use client";
-
-import { Suspense, useActionState } from "react";
-import { useSearchParams } from "next/navigation";
-import { register, type RegisterResult } from "./actions";
-import { LESSONS } from "@/lib/lessons";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { curriculumSlug, getLessons, toLessonOptions } from "@/lib/curriculum";
+import RegistroForm from "./registro-form";
 import TrackingPixel from "../tracking-pixel";
 
 // Página pública de registro (parte ancha del embudo): captura correo + lección
 // para avisos de clase. Excluida del middleware de auth (es pública).
 //
+// Es Server Component desde PRD-002: el selector de lección se llena desde
+// `curriculum_nodes`. `connection()` la saca del prerender de build (sin él,
+// `DATABASE_URL` no existe y el build revienta); lo que evita que consulte
+// Postgres en cada visita es el `unstable_cache` compartido de `curriculum.ts`,
+// no un export de esta página.
+//
 // Regla de código: identificadores en inglés; texto de UI en español.
-// useSearchParams exige un límite de Suspense en páginas estáticas; el
-// formulario vive dentro y la página lo envuelve.
-function RegistroForm() {
-  // ¿De qué sección de la home vino este registro? (atribución del embudo)
-  const src = useSearchParams().get("src");
-  const [result, formAction, pending] = useActionState<RegisterResult | null, FormData>(
-    register,
-    null
-  );
+export default async function RegistroPage() {
+  await connection();
+  const lessons = toLessonOptions(await getLessons(curriculumSlug()));
 
-  if (result?.ok) {
-    return (
-      <main className="registro">
-        <h1>¡Estás dentro! 🎉</h1>
-        <p className="registro__lead">{result.message}</p>
-        <p className="registro__lead">
-          Y cuando quieras probar el tutor, <a href="/signin">entra con este
-          mismo correo</a> — la prueba de 7 días empieza con tu primer mensaje,
-          no antes.
-        </p>
-      </main>
-    );
-  }
-
-  return (
-    <main className="registro">
-      <h1>Aprende a programar, en directo y gratis</h1>
-      <p className="registro__lead">
-        Déjame tu correo y te aviso de cada clase. Sin costo: las clases, las
-        grabaciones y la comunidad son gratis. Esto no crea ninguna cuenta ni
-        gasta tu prueba del tutor — es solo la lista de avisos.
-      </p>
-
-      <form className="registro__form" action={formAction}>
-        <input type="hidden" name="src" value={src ?? ""} />
-        <label>
-          Tu correo
-          <input
-            type="email"
-            name="email"
-            placeholder="tu@correo.com"
-            autoComplete="email"
-            required
-            autoFocus
-          />
-        </label>
-
-        <label>
-          Tu nombre <span className="registro__opt">(opcional)</span>
-          <input
-            type="text"
-            name="name"
-            placeholder="¿Cómo te llamas?"
-            autoComplete="given-name"
-          />
-        </label>
-
-        <label>
-          ¿En qué lección vas? <span className="registro__opt">(si ya empezaste)</span>
-          <select name="lesson" defaultValue="L1">
-            {LESSONS.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.id} — {l.title}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {result && !result.ok && (
-          <p className="registro__error" role="alert">
-            {result.message}
-          </p>
-        )}
-
-        <button type="submit" disabled={pending}>
-          {pending ? "Registrando…" : "Avísame de las clases"}
-        </button>
-      </form>
-    </main>
-  );
-}
-
-export default function RegistroPage() {
   return (
     <>
       <TrackingPixel path="/registro" />
       <Suspense fallback={null}>
-        <RegistroForm />
+        <RegistroForm lessons={lessons} />
       </Suspense>
     </>
   );
