@@ -19,7 +19,6 @@
     "@anthropic-ai/sdk": "^0.104.0",
     "@auth/drizzle-adapter": "^1.11.2",
     "@paddle/paddle-js": "^1.6.4",
-    "@paddle/paddle-node-sdk": "catalog:",
     "drizzle-orm": "catalog:",
     "next": "^15.5.0",
     "next-auth": "5.0.0-beta.31",

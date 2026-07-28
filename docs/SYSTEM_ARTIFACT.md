@@ -155,7 +155,9 @@ Forma canónica del adapter. `account` y `session` tienen `onDelete: cascade` co
 
 La frontera gratis/pago. Trial de 7 días sin tarjeta que **arranca con el primer mensaje al tutor**, no al hacer login: entrar a curiosear no gasta la prueba. Vencido el trial o cancelada la suscripción, el chat se sustituye por el muro de pago (Paddle).
 
-**Este dominio existe hoy por duplicado, y el que sirve en producción es `apps/api`.** PRD-003 lo portó a un servicio NestJS aparte detrás de `ACCESS_VIA_API`; el flag **está encendido en producción desde el 2026-07-28** (paso 3 de la migración, verificado de punta a punta contra el servicio real). El código de `src/lib/access.ts` sigue en el repositorio y es el camino de rollback —apagar el flag lo reactiva sin desplegar— pero **no es el que atiende a los estudiantes**. Quien depure el acceso o el cobro tiene que mirar `apps/api`, no la raíz. Las dos implementaciones escriben la misma tabla con las mismas sentencias idempotentes, así que conviven sin divergir. El camino viejo se retira en el paso 5, no antes.
+**Este dominio vive entero en `apps/api`. En la raíz no queda implementación.** PRD-003 lo portó a un servicio NestJS aparte detrás de `ACCESS_VIA_API`, y el paso 5 de esa migración (2026-07-28) retiró el camino viejo: se borró `src/app/api/paddle/webhook/route.ts`, `src/lib/access.ts` quedó reducido al tipo `Access`, y el flag desapareció con sus dos ramas muertas. Next conserva **solo** el puente (`src/lib/api-client.ts`) y el lado navegador del checkout (`paywall.tsx`, `/checkout`). Quien depure acceso o cobro mira `apps/api`.
+
+**Ya no hay rollback sin desplegar.** Mientras existió el flag, apagarlo devolvía el tráfico al camino en proceso con un reinicio. Ese camino ya no está en el código: revertir hoy es un `git revert` del commit del paso 5.
 
 ### Key Entities
 
@@ -176,30 +178,28 @@ El estado derivado que consume la app es `Access = { allowed, status: "none" \| 
 
 | Capability | Surface | Introduced in |
 |---|---|---|
-| Leer acceso sin efectos secundarios | `getAccess(email)` — `src/lib/access.ts` | — |
-| Crear el trial y devolver acceso | `ensureTrial(email)` — llamado **solo** desde `/api/chat` | — |
-| Escribir el estado que manda Paddle (upsert) | `setSubscriptionStatus(email, status, paddleSubscriptionId?)` — `src/lib/access.ts` | — |
-| Webhook de Paddle | `POST /api/paddle/webhook` | — |
+| Leer acceso sin efectos secundarios | `GET /v1/access` — `apps/api/src/access/access.service.ts` | PRD-003 |
+| Crear el trial y devolver acceso | `POST /v1/access/trial` — llamado **solo** desde `/api/chat` de Next | PRD-003 |
+| Escribir el estado que manda Paddle (upsert) | `setSubscriptionStatus` — `apps/api/src/access/subscriptions.repository.ts` | PRD-003 |
+| Webhook de Paddle | `POST /v1/webhooks/paddle` — `apps/api`. **Único destino** desde el paso 5 | PRD-003 |
 | Muro de pago con checkout de Paddle | `src/app/paywall.tsx` | — |
 | Payment link por defecto de Paddle (`?_ptxn=`) | `/checkout` (pública) | — |
 | Utilidades de dev: consultar / vencer un trial | `scripts/check-sub.mjs`, `scripts/expire-trial.mjs` | — |
-| Las tres anteriores, servidas por HTTP | `GET /v1/access`, `POST /v1/access/trial`, `POST /v1/webhooks/paddle` — `apps/api` | PRD-003 |
-| Puente de sesión entre servicios | `apps/web` reenvía el JWT de Auth.js como `Bearer`; `SessionGuard` lo verifica con `getToken()` de `@auth/core/jwt` | PRD-003 |
-| Conmutar entre el camino en proceso y el HTTP | `ACCESS_VIA_API` — **`true` en producción**; apagarlo es el rollback, sin desplegar. `src/lib/api-client.ts` | PRD-003 |
+| Puente de sesión entre servicios | Next reenvía el JWT de Auth.js como `Bearer`; `SessionGuard` lo verifica con `getToken()` de `@auth/core/jwt` | PRD-003 |
 | Alcanzar `apps/api` desde `apps/web` | `API_BASE_URL` = `http://api.railway.internal:8080` — red privada de Railway, **sin TLS**; ver `Open Debt` | PRD-003 |
 
 ### Key Invariants
 
-- **`getAccess` solo lee; `ensureTrial` es el único que crea la fila.** Renderizar `/chat` nunca arranca la prueba. **Lo que cambió con PRD-003**: antes esa invariante la garantizaba el call site —`ensureTrial` era privada y solo la llamaba `POST /api/chat`—; ahora `POST /v1/access/trial` es un endpoint alcanzable, así que la garantía pasa a ser "solo `apps/web` lo llama". Cualquiera con sesión válida puede arrancar su propio trial con un `curl` sin escribirle al tutor: el daño es nulo (quema su propia prueba) pero desacopla `trial_started` de `tutor_message_sent`.
+- **`GET /v1/access` solo lee; `POST /v1/access/trial` es el único que crea la fila.** Renderizar `/chat` nunca arranca la prueba. **Lo que cambió con PRD-003**: antes esa invariante la garantizaba el call site —la función que creaba el trial era privada del módulo y solo la llamaba `POST /api/chat`—; ahora es un endpoint alcanzable, así que la garantía pasa a ser "solo Next lo llama". Cualquiera con sesión válida puede arrancar su propio trial con un `curl` sin escribirle al tutor: el daño es nulo (quema su propia prueba) pero desacopla `trial_started` de `tutor_message_sent`.
 - El evento `trial_started` se emite **solo** cuando ese request creó la fila (`returning()` no vacío): un trial, un evento. La carrera de dos primeros mensajes simultáneos se resuelve releyendo la fila tras el `onConflictDoNothing`.
-- El webhook **debe leer el body crudo**; parsear a JSON antes rompe la verificación de firma del SDK de Paddle. En Next es `req.text()`; en `apps/api` es `rawBody: true` más `.toString("utf8")`, porque `req.rawBody` es un `Buffer` y `unmarshal` espera `string`.
+- El webhook **debe leer el body crudo**; parsear a JSON antes rompe la verificación de firma del SDK de Paddle. En `apps/api` es `rawBody: true` más `.toString("utf8")`, porque `req.rawBody` es un `Buffer` y `unmarshal` espera `string`.
 - **La identidad en `apps/api` sale del token y de ningún otro sitio.** Los handlers de `/v1/access*` no declaran `@Body()`, `@Query()` ni `@Param()`: ése es el control, no el `ValidationPipe`, que sin DTO no ejecuta nada. Un `email` suministrado por el llamante se ignora — si se leyera, cualquiera con sesión válida leería y escribiría la fila de cualquier otro, siendo `email` la llave única.
 - **`AUTH_COOKIE_NAME` es obligatoria y sin defecto** en los dos servicios. El `salt` de Auth.js es el nombre de la cookie, y Auth.js elige el prefijo `__Secure-` según el **protocolo de la petición**, no según `NODE_ENV`; `apps/api` recibe un Bearer y no puede ver ese protocolo, así que no puede adivinarlo. Un desajuste produce 401 para todo el mundo.
 - **`apps/web` nunca reenvía la cabecera `Cookie`** a `apps/api`: `getToken()` prefiere la cookie sobre el Bearer, así que reenviarla abriría un segundo canal de credencial no declarado.
 - El webhook responde **200 incluso ante un error propio** (lo registra en consola) para que Paddle no reintente en bucle. Firma inválida o evento ausente sí devuelven 400.
 - El correo llega desde Paddle en `customData.email` del checkout y se pasa a minúsculas antes de escribir.
 - **El webhook escribe con upsert, nunca con `UPDATE` a secas**: un pago puede llegar sin fila previa (`/checkout` es público y los flujos hospedados de Paddle no pasan por el tutor). `paddle_subscription_id` solo se sobrescribe si el evento trae uno.
-- El entorno de Paddle es `sandbox` salvo que `PADDLE_ENV`/`NEXT_PUBLIC_PADDLE_ENV` valga exactamente `production`.
+- El entorno de Paddle es `sandbox` salvo que valga exactamente `production`: `PADDLE_ENV` en `apps/api` (servidor) y `NEXT_PUBLIC_PADDLE_ENV` en Next (navegador). Desde el paso 5, Next ya no lee `PADDLE_ENV`.
 
 ### Open Debt
 
@@ -208,9 +208,9 @@ El estado derivado que consume la app es `Access = { allowed, status: "none" \| 
 - **`apps/api` registra un listener `error` en el pool de `pg`** (`apps/api/src/db/drizzle.module.ts`). Sin él, un cliente **ocioso** caído —reinicio de la base, corte del proxy— es una excepción no capturada que tumba el proceso: es el único camino por el que una excepción no pasa por el filtro global, porque no nace dentro de una petición. No hay test: provocarlo exige matar la conexión desde el servidor. Un refactor puede borrarlo sin que nada se ponga rojo. `src/lib/db.ts` sigue sin listener, de antes de PRD-003.
 - **Tres comprobaciones del rollout de PRD-003 no son repetibles.** Que `/chat` renderice con historial y selector durante una degradación, que el 503 del tutor no emita `tutor_message_sent`, y que un 401 de `apps/api` no redirija a `/signin` se verifican **a mano** en el paso 3, porque afirman sobre render de Server Components y `next/headers`, que el runner de `scripts/` no puede ejecutar. Quien toque `src/app/chat/page.tsx` o `src/app/api/chat/route.ts` después de esta fase tiene que re-verificarlas a mano.
 - **`src/lib/pixel.ts` existe por una restricción de Next**, no por diseño: `shouldEmitPageview()` no puede exportarse desde `src/app/api/t/route.ts` porque un Route Handler solo admite exports de métodos HTTP y claves de configuración. PRD-003 no lo nombra.
-- **`PADDLE_TRACK_ENABLED` no se retira** en el paso 5 de la migración, que sí retira `ACCESS_VIA_API` y borra el handler que la variable gobierna. Queda pudriéndose en la configuración de Railway si nadie la quita.
-- **El puente entre servicios va por `http://`, no por TLS.** `API_BASE_URL` apunta a `api.railway.internal:8080`, la red privada de Railway, que aísla pero no cifra. Por ahí viajan el correo del estudiante y **el JWT de sesión**, que es una credencial portadora de ~30 días sin revocación individual. PRD-003 § 8 dice "solo sobre TLS", así que hoy la propiedad **no se cumple**: la sostiene el aislamiento de red, no el cifrado. Es una decisión pendiente, no un hecho aceptado — o se acepta conscientemente y se anota aquí como tal, o se termina TLS en `apps/api`. Urge decidirlo **antes del paso 4**, que cambia la topología exponiendo el servicio a internet.
-- **`apps/api` no tiene dominio público.** Es endurecimiento por encima de lo que PRD-003 § 1.1 exige, y es la razón real por la que el riesgo aceptado de "sin límite de tasa" (§ 8) todavía no ha mordido. **Esa protección caduca en el paso 4**, que obliga a exponerlo para que Paddle alcance el webhook.
+- **Tres variables quedan huérfanas en la configuración de Railway del servicio Next.** El paso 5 borró el código que las leía, no la configuración: `ACCESS_VIA_API`, `PADDLE_TRACK_ENABLED` y `PADDLE_WEBHOOK_SECRET` siguen ahí hasta que alguien las quite a mano. La tercera es un secreto vivo de Paddle en un servicio que ya no verifica firmas — retirarla es limpieza y también reducción de radio de explosión.
+- **El puente entre servicios va por `http://`, no por TLS.** `API_BASE_URL` apunta a `api.railway.internal:8080`, la red privada de Railway, que aísla pero no cifra. Por ahí viajan el correo del estudiante y **el JWT de sesión**, que es una credencial portadora de ~30 días sin revocación individual. PRD-003 § 8 dice "solo sobre TLS", así que hoy la propiedad **no se cumple**: la sostiene el aislamiento de red, no el cifrado. Sigue siendo una decisión pendiente, y el paso 4 ya pasó sin tomarla — el momento en que había que decidirlo era antes de exponer el servicio, no después.
+- **`apps/api` está expuesto y sin límite de tasa.** El paso 4 le dio destino público para que Paddle alcance `POST /v1/webhooks/paddle`, así que la protección que antes daba "no tiene dominio público" ya no está. El riesgo aceptado de PRD-003 § 8 —sin rate limiting— pasa de teórico a real sobre `/v1/access*` y sobre el webhook. Es el primer candidato de la lista si aparece abuso.
 
 ---
 
@@ -430,6 +430,7 @@ railway variables --service tutor-app --set CURRICULUM_SLUG=contextia
 
 | Date | PRD | Summary |
 |---|---|---|
+| 2026-07-28 | PRD-003 | **Paso 5 de la migración** (§ 10): se retira el camino viejo. Borrado `src/app/api/paddle/webhook/route.ts` —`apps/api` es el único destino de Paddle—, `src/lib/access.ts` queda reducido al tipo `Access`, y el flag `ACCESS_VIA_API` desaparece con sus ramas muertas en `chat/page.tsx` y `api/chat/route.ts`. `resolveClientConfig()` pasa a validarse siempre al cargar el módulo, así que `scripts/check-access-bridge.ts` fija las variables antes de importarlo. `@paddle/paddle-node-sdk` sale de las dependencias de la raíz. |
 | 2026-07-28 | PRD-003 | El repositorio pasa a workspace pnpm y nace `apps/api` (NestJS, CommonJS): el dominio de acceso y cobro se porta ahí detrás de `ACCESS_VIA_API`, apagado por defecto. El puente de sesión reenvía el JWT de Auth.js y `apps/api` lo verifica con `getToken()`. El píxel anónimo deja de usar `AUTH_SECRET` como sal y falla cerrado sin `ANALYTICS_SALT`. Registro de errores por allowlist de campo en `apps/api`. |
 | 2026-07-28 | PRD-002 | El currículo pasa a ser un árbol en `curriculum_nodes`, proyectado desde `curriculum/contextia.json`. Se retiran `src/lib/lessons.ts` y `src/lib/program.ts`; nacen `curriculum-file.ts`, `curriculum-context.ts`, `curriculum.ts` y `scripts/load-curriculum.ts`. |
 | 2026-07-27 | — | Bootstrap desde el código (commit `f2b948e`); ningún PRD lo precede. |

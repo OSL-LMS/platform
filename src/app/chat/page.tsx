@@ -6,7 +6,7 @@
 
 import { auth } from "@/auth";
 import { loadConversation } from "@/lib/conversations";
-import { getAccess, type Access } from "@/lib/access";
+import type { Access } from "@/lib/access";
 import { fetchAccess, readSessionToken, resolveClientConfig } from "@/lib/api-client";
 import { curriculumSlug, getLessons, toLessonOptions } from "@/lib/curriculum";
 import ChatClient from "../chat-client";
@@ -24,7 +24,7 @@ export default async function ChatPage() {
 
   // Frontera gratis/pago: solo LEE el acceso — entrar a mirar no gasta la
   // prueba; el trial arranca con el primer mensaje al tutor (/api/chat).
-  const access = await resolveAccess(email);
+  const access = await resolveAccess();
   if (!access.allowed) {
     return (
       <Paywall
@@ -49,16 +49,15 @@ export default async function ChatPage() {
   );
 }
 
-// PRD-003 §5.3: con ACCESS_VIA_API apagado (por defecto), camino de hoy sin
-// cambios. Encendido, un `{error:true}` del puente (timeout, 5xx, desajuste de
+// PRD-003 §5.3: un `{error:true}` del puente (timeout, 5xx, desajuste de
 // salt…) se trata como acceso permitido sin trial confirmado: el estudiante
 // sigue viendo ChatClient —nunca Paywall, nunca redirect a /signin, un 401 de
 // apps/api no es "sin sesión"— pero sin inventar días de prueba que apps/api
 // no pudo confirmar.
-async function resolveAccess(email: string): Promise<Access> {
-  if (process.env.ACCESS_VIA_API !== "true") {
-    return getAccess(email);
-  }
+//
+// La identidad sale del token de sesión, no de un argumento: por eso esta
+// función no recibe el email.
+async function resolveAccess(): Promise<Access> {
   const config = resolveClientConfig();
   const token = await readSessionToken();
   const result = await fetchAccess(token, config.apiBaseUrl, config.accessTimeoutMs);

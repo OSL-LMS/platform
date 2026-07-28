@@ -3,7 +3,6 @@ import { TUTOR_SYSTEM_PROMPT } from "@/lib/tutor-prompt";
 import { buildLessonContext } from "@/lib/curriculum-context";
 import { curriculumSlug, getLessonContextInputs } from "@/lib/curriculum";
 import { auth } from "@/auth";
-import { ensureTrial } from "@/lib/access";
 import {
   decideTutorTurn,
   fetchAccessTrial,
@@ -42,11 +41,10 @@ export async function POST(req: Request) {
   }
 
   // Frontera gratis/pago: el primer mensaje al tutor arranca el trial (7 días,
-  // sin tarjeta). Sin trial vigente ni suscripción activa, no hay tutor. Con
-  // ACCESS_VIA_API encendido y el puente caído (timeout o 5xx), el tutor se
-  // deniega con 503 en vez de conceder acceso sin poder verificarlo (§5.3,
-  // excepción declarada al goal 6).
-  const result = await resolveTrialAccess(email);
+  // sin tarjeta). Sin trial vigente ni suscripción activa, no hay tutor. Con el
+  // puente caído (timeout o 5xx), el tutor se deniega con 503 en vez de
+  // conceder acceso sin poder verificarlo (§5.3, excepción declarada al goal 6).
+  const result = await resolveTrialAccess();
   const decision = decideTutorTurn(result);
   if (!decision.ok) {
     const message =
@@ -172,13 +170,12 @@ export async function POST(req: Request) {
   });
 }
 
-// PRD-003 §5.3: con ACCESS_VIA_API apagado (por defecto), camino de hoy sin
-// cambios. Encendido, delega en el puente (POST /v1/access/trial) y devuelve
-// el ApiResult crudo — decideTutorTurn() es quien traduce eso a 503/403/OK.
-async function resolveTrialAccess(email: string): Promise<ApiResult> {
-  if (process.env.ACCESS_VIA_API !== "true") {
-    return ensureTrial(email);
-  }
+// PRD-003 §5.3: delega en el puente (POST /v1/access/trial) y devuelve el
+// ApiResult crudo — decideTutorTurn() es quien traduce eso a 503/403/OK.
+//
+// La identidad sale del token de sesión, no de un argumento: por eso esta
+// función no recibe el email.
+async function resolveTrialAccess(): Promise<ApiResult> {
   const config = resolveClientConfig();
   const token = await readSessionToken();
   return fetchAccessTrial(token, config.apiBaseUrl, config.accessTimeoutMs);

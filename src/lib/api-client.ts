@@ -44,12 +44,8 @@ const VALID_COOKIE_NAMES = [
 const DEFAULT_ACCESS_TIMEOUT_MS = 2000;
 
 // Configuración de servidor, sin valores por defecto salvo el timeout (§5.3,
-// §9 filas 37-38). Se llama al ENTRAR al camino nuevo (dentro de
-// readSessionToken/fetchAccess y de los call sites), no al importar el
-// módulo: con ACCESS_VIA_API apagado (§10 paso 2) ninguna de estas variables
-// tiene por qué existir todavía, y el objetivo de ese paso es cero cambio de
-// comportamiento — no tumbar la app entera por una variable de una vía que
-// no se está usando.
+// §9 filas 37-38). Se llama al importar el módulo (abajo) y también desde cada
+// call site, que ya tiene el `config` delante.
 export function resolveClientConfig(): ClientConfig {
   const authCookieName = process.env.AUTH_COOKIE_NAME;
   if (
@@ -85,23 +81,20 @@ export function resolveClientConfig(): ClientConfig {
   };
 }
 
-// Goal 5, versión que sí cumple sin coste: con el flag apagado (§10 paso 2)
-// esta línea no valida nada, así que las variables nuevas siguen sin ser
-// necesarias y el paso conserva su "cero cambio de comportamiento". Con el
-// flag encendido, la validación corre AL CARGAR EL MÓDULO, no en la primera
-// petición: encender ACCESS_VIA_API en Railway reinicia el servicio, así que
-// "al arrancar" y "al encender el flag" son el mismo instante. Si falta una
-// variable, el proceso no llega a levantar y Railway conserva el despliegue
-// anterior — en vez de que resolveClientConfig() lance DENTRO del render de
-// /chat, donde tumbaría error.tsx para TODOS los estudiantes (rompe el goal 8:
-// la política de degradación de fetchAccess no atrapa esto, porque
+// Goal 5: la validación corre AL CARGAR EL MÓDULO, no en la primera petición.
+// Si falta una variable, el proceso no llega a levantar y Railway conserva el
+// despliegue anterior — en vez de que resolveClientConfig() lance DENTRO del
+// render de /chat, donde tumbaría error.tsx para TODOS los estudiantes (rompe
+// el goal 8: la política de degradación de fetchAccess no atrapa esto, porque
 // {error:true} solo cubre lo que pasa dentro de fetchAccess/fetchAccessTrial).
 //
 // Aviso: `next build` importa los módulos de página al recolectar datos de
-// cada ruta. Si el build corre con ACCESS_VIA_API=true y sin API_BASE_URL (o
-// AUTH_COOKIE_NAME), FALLARÁ AQUÍ, con el mismo mensaje de arriba — es
-// correcto (falla todavía más temprano), no un fallo de build misterioso.
-if (process.env.ACCESS_VIA_API === "true") resolveClientConfig();
+// cada ruta, así que sin API_BASE_URL (o AUTH_COOKIE_NAME) el fallo aparece ya
+// en el build, con el mismo mensaje de arriba — es correcto (falla todavía más
+// temprano), no un fallo de build misterioso. Por lo mismo,
+// scripts/check-access-bridge.ts tiene que fijar las dos variables ANTES de
+// importar este módulo.
+resolveClientConfig();
 
 // Resuelve la cookie de sesión a partir de un mapa nombre→valor ya extraído
 // (así es pura y testable sin next/headers — §9 fila 35). Prueba el prefijo

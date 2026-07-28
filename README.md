@@ -46,10 +46,10 @@ src/
     api/
       chat/route.ts                # llama a Sonnet con streaming
       auth/[...nextauth]/route.ts  # Auth.js
-      paddle/webhook/route.ts      # activa la suscripción al cobrar
   lib/
     tutor-prompt.ts                # system prompt certificado del tutor
-    access.ts                      # frontera gratis/pago (trial, gate)
+    api-client.ts                  # puente hacia apps/api (acceso y cobro)
+    access.ts                      # solo el tipo Access; la lógica vive en apps/api
     schema.ts  db.ts  conversations.ts
   auth.ts  auth.config.ts  middleware.ts
 ```
