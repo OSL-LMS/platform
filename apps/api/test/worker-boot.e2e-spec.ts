@@ -1,6 +1,6 @@
 // El arranque del worker, desde un proceso hijo de verdad.
 //
-// Cubre las filas 35, 36, 37, 38 y 39 de PRD-004 §9.
+// Cubre las filas 35, 36, 37, 37b, 38, 39 y 39b de PRD-004 §9.
 //
 // POR QUÉ DESDE UN PROCESO HIJO: los códigos de salida solo se afirman así
 // (`spawn` + `child.on("exit")`), y lo que estas filas prueban es el goal 8 —"el
@@ -183,6 +183,52 @@ describe("arranque del worker de reconciliación", () => {
   }, 120_000);
 
   // -------------------------------------------------------------------------
+  // Fila 37b — RECONCILE_DEADLINE_MS invalida tumba el arranque
+  // -------------------------------------------------------------------------
+  it("fila 37b: RECONCILE_DEADLINE_MS no numérico o no positivo sale 1 nombrándola", async () => {
+    // El validador existe en `worker-config.ts` pero PRD-004 §7.1 solo pedía
+    // "opcional, defecto 300 000": nada obligaba a rechazar una entrada mala, y
+    // sin esta fila un `Number(raw) || DEFAULT` volvería a colarse sin que nada
+    // se ponga rojo. Importa porque el deadline es el ÚNICO freno de un barrido
+    // sin límite de páginas (§8.4) y porque su invariante —menor que el periodo
+    // del cron (§5.1)— deja de comprobarse si el valor cae en silencio al
+    // defecto. Hallazgo de la re-revisión post-implementación, ronda 1.
+    // La cadena vacía NO va aquí: `worker-config.ts:92` la trata como ausencia y
+    // cae al defecto, igual que el `!value` de `required()` en ese mismo fichero.
+    for (const value of ["abc", "0", "-1", "5.5"]) {
+      const result = await runWorker({
+        DATABASE_URL: DEAD_DATABASE_URL,
+        PADDLE_API_KEY: FAKE_API_KEY,
+        PADDLE_ENV: "sandbox",
+        RECONCILE_DEADLINE_MS: value,
+      });
+
+      expect(
+        result.code,
+        `RECONCILE_DEADLINE_MS=${JSON.stringify(value)} debería tumbar el arranque`
+      ).toBe(1);
+      expect(result.output).toContain("RECONCILE_DEADLINE_MS");
+      expect(result.output).not.toContain(CONFIG_LINE);
+    }
+  }, 120_000);
+
+  it("fila 37b: ausente, vacía o válida arrancan", async () => {
+    for (const value of [undefined, "", "1000"]) {
+      const output = await runUntilLine(
+        {
+          DATABASE_URL: DEAD_DATABASE_URL,
+          PADDLE_API_KEY: FAKE_API_KEY,
+          PADDLE_ENV: "sandbox",
+          RECONCILE_DEADLINE_MS: value,
+        },
+        CONFIG_LINE
+      );
+
+      expect(output).toContain(CONFIG_LINE);
+    }
+  }, 120_000);
+
+  // -------------------------------------------------------------------------
   // Fila 38 — POSTHOG_API_KEY con la escritura activada
   // -------------------------------------------------------------------------
   it("fila 38: con RECONCILE_APPLY=true y sin POSTHOG_API_KEY sale 1 nombrándola", async () => {
@@ -264,7 +310,7 @@ describe("arranque del worker de reconciliación", () => {
     expect(output).not.toContain(FAKE_API_KEY);
   }, 60_000);
 
-  it("fila 39: y el contenedor SE CONSTRUYE de verdad — muere en Postgres, no en la DI", async () => {
+  it("fila 39b: y el contenedor SE CONSTRUYE de verdad — muere en Postgres, no en la DI", async () => {
     // Ver la línea de configuración no prueba que el grafo resuelva: eso ocurre
     // después. Sin esta afirmación, un `WorkerModule` que no construyera —un
     // `API_CONFIG` sin exportar, un provider que `ReconcileModule` no ve— pasaría

@@ -29,6 +29,22 @@ export type SubscriptionChanges = {
   paddleSubscriptionId?: string;
 };
 
+/** Lo que escribe el RECONCILIADOR: lo mismo, menos la mitad que no le está
+ *  permitida.
+ *
+ *  PRD-004 §1.3 es la propiedad central del diseño —el barrido concede acceso y
+ *  no lo quita— y hasta aquí la sostenían dos literales `"active"` en los dos
+ *  call sites de `reconcile.service.ts`. Eso es una convención: un `revert`
+ *  descuidado, un refactor que unifique las dos ramas, o alguien implementando
+ *  §11 sin haber leído §1.3, la rompen sin que el compilador diga nada — y el
+ *  fallo que producen, una fila `canceled` escrita por el barrido, es una
+ *  denegación de acceso irreversible (`access.service.ts:76-93`).
+ *
+ *  Tiparlo cuesta una línea y lo convierte en algo que no compila. Es el mismo
+ *  patrón que `reconcile/paddle.client.ts` aplica al cliente de Paddle, donde
+ *  `cancel()` ni siquiera existe en el tipo inyectado. */
+export type ReconcilerChanges = SubscriptionChanges & { status: "active" };
+
 /** Las cuatro columnas que el barrido necesita de cada fila (PRD-004 §6.4). No
  *  se traen `trial_ends_at` ni las marcas de tiempo porque el barrido no las
  *  lee y NUNCA las escribe: pedir menos columnas es también la forma de que un
@@ -85,6 +101,21 @@ export class SubscriptionsRepository {
    *  @returns `true` si la sentencia dejó una fila (insertada o actualizada).
    *  `false` solo es posible con `preserveCanceled`, y significa que el
    *  conflicto se descartó: el llamante lo cuenta como `desincronizado`. */
+  // Las dos firmas atan `preserveCanceled` a `ReconcilerChanges`, que es lo que
+  // hace comprobable el "SOLO de él" de arriba: por esta rama pasa el ALTA del
+  // barrido, o sea la que puede crear una fila donde no había ninguna, que es
+  // la escritura irreversible de §1.3. Sin ellas el invariante estaría tipado a
+  // medias — `updateStatusIfUnchanged` sí, el alta no.
+  async upsertStatus(
+    email: string,
+    changes: ReconcilerChanges,
+    options: { preserveCanceled: true }
+  ): Promise<boolean>;
+  async upsertStatus(
+    email: string,
+    changes: SubscriptionChanges,
+    options?: { preserveCanceled?: false }
+  ): Promise<boolean>;
   async upsertStatus(
     email: string,
     changes: SubscriptionChanges,
@@ -138,7 +169,7 @@ export class SubscriptionsRepository {
   async updateStatusIfUnchanged(
     id: string,
     observedStatus: Subscription["status"],
-    changes: SubscriptionChanges
+    changes: ReconcilerChanges
   ): Promise<boolean> {
     const written = await this.db
       .update(subscriptions)

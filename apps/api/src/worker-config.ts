@@ -1,5 +1,13 @@
-// Configuración del worker de reconciliación, resuelta y VALIDADA una sola vez
-// al arrancar (PRD-004 §7.1).
+// Configuración del worker de reconciliación, resuelta y VALIDADA al arrancar,
+// ANTES de construir nada (PRD-004 §7.1).
+//
+// Se resuelve DOS VECES por arranque, no una: `worker.ts` la llama para poder
+// fallar con un mensaje legible, y la fábrica de `WorkerConfigModule` la vuelve
+// a llamar dentro del contenedor. No es un descuido —es el mismo patrón que
+// `main.ts` y `ConfigModule`— y es inocuo porque `resolveWorkerConfig()` es una
+// función pura del entorno: mismas variables, mismo resultado. Quien le añada
+// un efecto (leer un fichero, pedir un secreto, escribir un log) rompe esa
+// premisa y tiene que resolver antes cuál de las dos llamadas sobra.
 //
 // NO ES `resolveApiConfig()` CON OTRO NOMBRE, y las diferencias son el PRD
 // entero:
