@@ -2,7 +2,7 @@
   "name": "api",
   "version": "0.1.0",
   "private": true,
-  "description": "Servicio NestJS del dominio de acceso y cobro (PRD-003 fase 1). Verifica el JWT de sesión de Auth.js, sirve /v1/access* y el webhook de Paddle.",
+  "description": "Servicio NestJS del dominio de acceso y cobro (PRD-003 fase 1). Verifica el JWT de sesión de Auth.js, sirve /v1/access* y el webhook de Paddle. Dos entrypoints desde PRD-004: `start` levanta el servicio HTTP y `start:worker` ejecuta UNA pasada del reconciliador contra Paddle y termina.",
   "engines": {
     "node": ">=22.12"
   },
@@ -10,6 +10,7 @@
     "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/apps/api/src/main.js",
+    "start:worker": "node dist/apps/api/src/worker.js",
     "start:dev": "nest start --watch",
     "test": "vitest run"
   },

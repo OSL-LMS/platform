@@ -95,6 +95,13 @@ export function applyApiEnv(overrides: Record<string, string | undefined> = {}):
     // Sin clave de PostHog el cliente es null y `track()` es un no-op: los
     // tests que cuentan eventos espían el provider, no la red.
     POSTHOG_API_KEY: undefined,
+    // Se BORRA, y es obligatorio borrarla: desde PRD-004 §8.1 `resolveApiConfig()`
+    // lanza si la variable está PRESENTE, así que a un desarrollador que la
+    // tenga exportada en su shell se le caería la suite entera con un mensaje
+    // que nombra el problema equivocado. Éste es el primero de los dos sitios
+    // que la limpian; el otro es `bootEntrypoint` en `build-boot.e2e-spec.ts`,
+    // que esparce `...process.env` y no pasa por aquí. Fila 42 de PRD-004 §9.
+    PADDLE_API_KEY: undefined,
     ...overrides,
   };
 

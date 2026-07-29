@@ -29,7 +29,13 @@ export type TutorEvent =
   | "trial_started"
   | "tutor_message_sent"
   | "subscription_activated"
-  | "subscription_canceled";
+  | "subscription_canceled"
+  // AUDITORÍA, NO EMBUDO (PRD-004 §3, §8.2). Lo emite el reconciliador por cada
+  // escritura aplicada, con `{ from, to, paddle_subscription_id }`.
+  // `subscription_activated` significa "Paddle nos lo confirmó por webhook" y su
+  // marca de tiempo alimenta el embudo; mezclar aquí las reparaciones lo
+  // corrompería con eventos que no son conversiones.
+  | "subscription_reconciled";
 
 @Injectable()
 export class AnalyticsService implements OnModuleDestroy {

@@ -18,6 +18,12 @@
 //     Quitarlo para "dejar que lo maneje el filtro" haría que Paddle recibiera
 //     500 y reintentara en bucle. Filas 29 y 31 de §9.
 //
+// LO QUE CAMBIÓ CON PRD-004: el mapa de estados y el extractor de correo ya no
+// viven aquí — salieron a `paddle-status.ts` y `paddle-email.ts` porque el
+// reconciliador escribe la MISMA columna y dos criterios divergentes se pisan
+// (PRD-004 §6.2). Este controlador es ahora un consumidor más de las dos
+// piezas, y su comportamiento observable no se movió: filas 5 y 6 de PRD-004 §9.
+//
 // Regla de código: identificadores en inglés, comentarios en español.
 
 import {
@@ -42,18 +48,8 @@ import { AnalyticsService } from "../analytics/analytics.service.ts";
 import { causeCode, errorName } from "../common/error-fields.ts";
 import { API_CONFIG, type ApiConfig } from "../config.ts";
 import { WEBHOOK_THROTTLE } from "../throttle.ts";
-
-// Extrae el correo de la app que enviamos como customData en el checkout. Es la
-// llave para enlazar la suscripción de Paddle con nuestra fila de subscriptions.
-//
-// El `.toLowerCase()` SE CONSERVA: la asimetría con el camino del tutor —que
-// usa el correo del token sin transformar— es deliberada y preexistente
-// (§6, §9 filas 18 y 33).
-export function emailFromCustomData(data: unknown): string | null {
-  const cd = (data as { customData?: Record<string, unknown> } | null)?.customData;
-  const email = cd?.email;
-  return typeof email === "string" ? email.toLowerCase() : null;
-}
+import { emailFromCustomData } from "./paddle-email.ts";
+import { mapPaddleStatus } from "./paddle-status.ts";
 
 // Cota propia, más alta que la global: Paddle entrega en ráfaga. Ver
 // `throttle.ts` para los números y su razón.
@@ -68,7 +64,12 @@ export class BillingController {
     private readonly access: AccessService,
     private readonly analytics: AnalyticsService
   ) {
-    this.paddle = new Paddle(config.paddleApiKey, {
+    // Cadena vacía EXPLÍCITA, no `config.paddleApiKey`: desde PRD-004 §8.1 ese
+    // campo ya no existe en `ApiConfig` y el servicio se NIEGA A ARRANCAR si
+    // `PADDLE_API_KEY` aparece en su entorno. No rompe nada porque este
+    // controlador no llama a un solo método de la API de Paddle: `unmarshal`
+    // delega en el validador de firma sin tocar el cliente ni la clave.
+    this.paddle = new Paddle("", {
       environment:
         config.paddleEnvironment === "production" ? Environment.production : Environment.sandbox,
     });
@@ -126,15 +127,24 @@ export class BillingController {
       case EventName.SubscriptionUpdated: {
         const data = event.data as { id?: string; status?: string };
         const email = emailFromCustomData(event.data);
-        const canceled = data.status === "canceled";
+
+        // El `?? "active"` conserva el comportamiento exacto de antes de
+        // PRD-004: lo que había aquí era `data.status === "canceled"`, que
+        // mandaba a `active` TODO lo que no fuera `canceled` —estados
+        // desconocidos incluidos—. Quien decide qué hacer con un estado sin
+        // mapear es el call site y no el mapa (§6.2), y el reconciliador toma la
+        // decisión CONTRARIA —no escribe, cuenta `desconocido`— porque él
+        // reintenta cada hora y esto se ejecuta una vez por evento confirmado.
+        const status = mapPaddleStatus(data.status) ?? "active";
+
         if (email) {
-          await this.access.setSubscriptionStatus(email, canceled ? "canceled" : "active", data.id);
+          await this.access.setSubscriptionStatus(email, status, data.id);
 
           // Cierre del embudo. El evento sale del webhook y no del navegador
           // porque el pago solo es real cuando Paddle lo confirma aquí.
           this.analytics.track(
             email,
-            canceled ? "subscription_canceled" : "subscription_activated",
+            status === "canceled" ? "subscription_canceled" : "subscription_activated",
             { paddle_event: event.eventType }
           );
         }

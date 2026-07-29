@@ -1,11 +1,20 @@
 // El webhook de Paddle bajo NestJS.
 //
-// Cubre las filas 24, 25, 26, 27, 28, 29, 30, 31, 32 y 33 de PRD-003 §9.
+// Cubre las filas 24, 25, 26, 27, 28, 29, 30, 31, 32 y 33 de PRD-003 §9, y las
+// filas 5 y 6 de PRD-004 §9.
 //
 // El webhook NO lleva sesión: se autentica por firma sobre el body crudo, y por
 // eso puede mudarse sin depender del puente de auth. Lo que sí introduce el
 // cambio de framework es que `req.rawBody` es un Buffer y `unmarshal` recibe un
 // string — la fila 26 es la regresión de ese `.toString("utf8")`.
+//
+// PRD-004 saca de este controlador el mapa de estados y el extractor de correo
+// (`paddle-status.ts`, `paddle-email.ts`) para compartirlos con el
+// reconciliador. Las filas 5 y 6 son la regresión de esa extracción: 5 fija que
+// los cinco estados del SDK escriban lo mismo que antes por la rama
+// `Created/Activated/Updated`, y 6 fija que la rama `SubscriptionCanceled` siga
+// SIN mirar `data.status` — es dirigida por evento, y PRD-004 §3 la declara
+// fuera de alcance.
 //
 // Regla de código: identificadores en inglés, comentarios en español.
 
@@ -296,6 +305,91 @@ describe("webhook de Paddle contra base real", () => {
 
     expect(response.status).toBe(200);
     expect(await db.select().from(schema.subscriptions)).toHaveLength(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // Fila 5 de PRD-004 — el webhook conserva su comportamiento tras la extracción
+  // -------------------------------------------------------------------------
+  it("fila 5 (PRD-004): los cinco estados del SDK escriben por Created/Activated/Updated lo mismo que antes", async () => {
+    // Antes de la extracción esta rama era `data.status === "canceled"`. Lo que
+    // se fija aquí es la tabla de §6.2 EN PRODUCCIÓN, no en el módulo puro: si
+    // el mapa y el controlador se desalinean —por ejemplo si alguien decide que
+    // un estado sin mapear deje de escribir—, esto es lo que lo ve.
+    const expected: Array<[string, "active" | "canceled", string]> = [
+      ["active", "active", "subscription_activated"],
+      ["trialing", "active", "subscription_activated"],
+      // Deuda heredada, declarada en docs/SYSTEM_ARTIFACT.md: se reproduce.
+      ["past_due", "active", "subscription_activated"],
+      ["paused", "active", "subscription_activated"],
+      ["canceled", "canceled", "subscription_canceled"],
+    ];
+
+    for (const [paddleStatus, stored, event] of expected) {
+      await db.delete(schema.subscriptions);
+      analytics.track.mockClear();
+
+      const body = paddleBody(EventName.SubscriptionUpdated, {
+        id: "sub_estado",
+        status: paddleStatus,
+      });
+      const response = await postWebhook(running.baseUrl, body, paddleSignature(body));
+      expect(response.status, `${paddleStatus} debería procesarse`).toBe(200);
+
+      const rows = await db.select().from(schema.subscriptions);
+      expect(rows, `${paddleStatus} debería escribir una fila`).toHaveLength(1);
+      expect(rows[0].status, `${paddleStatus} debería quedar como ${stored}`).toBe(stored);
+      expect(analytics.track).toHaveBeenCalledWith(NORMALIZED_EMAIL, event, {
+        paddle_event: EventName.SubscriptionUpdated,
+      });
+    }
+  });
+
+  it("fila 5 (PRD-004): un estado desconocido sigue cayendo a `active` en el webhook", async () => {
+    // El reconciliador toma la decisión CONTRARIA con la misma entrada —no
+    // escribe y cuenta `desconocido` (§6.5)—, y esa divergencia es deliberada:
+    // el webhook procesa un evento confirmado una vez, el barrido reintenta cada
+    // hora. Fijarlo aquí es lo que impide que un refactor "unifique" las dos
+    // decisiones creyendo que arregla una inconsistencia.
+    const body = paddleBody(EventName.SubscriptionUpdated, {
+      id: "sub_desconocida",
+      status: "wibble",
+    });
+    const response = await postWebhook(running.baseUrl, body, paddleSignature(body));
+
+    expect(response.status).toBe(200);
+    const rows = await db.select().from(schema.subscriptions);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("active");
+  });
+
+  // -------------------------------------------------------------------------
+  // Fila 6 de PRD-004 — SubscriptionCanceled ignora el estado
+  // -------------------------------------------------------------------------
+  it("fila 6 (PRD-004): un subscription.canceled con status active sigue escribiendo canceled", async () => {
+    // La rama es dirigida por EVENTO, no por estado: no lee `data.status` y no
+    // pasa por el mapa. Es la discriminante que la fila 28 no cubre, porque
+    // aquélla manda `status: "canceled"` y pasaría igual si alguien enchufara el
+    // mapa aquí por simetría.
+    await db.insert(schema.subscriptions).values({
+      email: NORMALIZED_EMAIL,
+      status: "active",
+      updatedAt: new Date(),
+    });
+
+    const body = paddleBody(EventName.SubscriptionCanceled, {
+      id: "sub_cancelada",
+      status: "active",
+    });
+    const response = await postWebhook(running.baseUrl, body, paddleSignature(body));
+
+    expect(response.status).toBe(200);
+
+    const rows = await db.select().from(schema.subscriptions);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("canceled");
+    expect(analytics.track).toHaveBeenCalledWith(NORMALIZED_EMAIL, "subscription_canceled", {
+      paddle_event: EventName.SubscriptionCanceled,
+    });
   });
 });
 

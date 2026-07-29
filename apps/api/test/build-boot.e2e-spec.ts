@@ -1,6 +1,6 @@
 // La configuración de build de apps/api, vigilada por los dos caminos.
 //
-// Cubre las filas 1, 2 y 3 de PRD-003 §9.
+// Cubre las filas 1, 2 y 3 de PRD-003 §9, y las filas 40, 41 y 42 de PRD-004 §9.
 //
 // Por qué hay una fila que compila y arranca de verdad: el camino de BUILD es
 // donde §Design Decisions demuestra que el import cruzado a
@@ -26,6 +26,7 @@ import { AccessService } from "../src/access/access.service.ts";
 import { SubscriptionsRepository } from "../src/access/subscriptions.repository.ts";
 import { AnalyticsService } from "../src/analytics/analytics.service.ts";
 import { AppModule } from "../src/app.module.ts";
+import { resolveApiConfig } from "../src/config.ts";
 import { SessionGuard } from "../src/session/session.guard.ts";
 import {
   API_ROOT,
@@ -40,6 +41,11 @@ import {
 /** El entrypoint emitido es `dist/apps/api/src/main.js`, NO `dist/main.js`: el
  *  `rootDir` inferido por tsc es la raíz del repositorio. */
 const ENTRYPOINT = "dist/apps/api/src/main.js";
+
+/** El SEGUNDO entrypoint (PRD-004 §5.1), emitido por el mismo `rootDir`
+ *  inferido. Es el que el paso 3 de §10 pone como arranque del servicio de cron
+ *  en Railway, así que su ruta es parte del plan de despliegue. */
+const WORKER_ENTRYPOINT = "dist/apps/api/src/worker.js";
 
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -58,7 +64,16 @@ type SpawnResult = { code: number | null; stderr: string; stdout: string };
 function bootEntrypoint(env: Record<string, string | undefined>) {
   return spawn(process.execPath, [ENTRYPOINT], {
     cwd: API_ROOT,
-    env: { ...process.env, ...env },
+    // `PADDLE_API_KEY: undefined` va ANTES del spread de `env` y es
+    // load-bearing: este entrypoint esparce `...process.env`, así que una
+    // variable exportada en la shell del desarrollador llega al `main.js`
+    // lanzado y el guarda de PRD-004 §8.1 lo mata — con lo que las filas 1 y 3
+    // de PRD-003 §9 fallarían nombrando el problema equivocado. `applyApiEnv()`
+    // no cubre este camino: aquí no se llama (§8.1, "dos sitios, no uno").
+    // `spawn` omite del entorno las claves con valor `undefined`, que es lo
+    // mismo que ya hace la fila 3 con `AUTH_COOKIE_NAME`. Va antes del spread
+    // para que la fila 41 pueda ponerla a propósito.
+    env: { ...process.env, PADDLE_API_KEY: undefined, ...env },
     stdio: ["ignore", "pipe", "pipe"],
   });
 }
@@ -160,6 +175,111 @@ describe("build y arranque", () => {
       expect(`${result.stdout}${result.stderr}`).toContain(missing);
     }
   }, 120_000);
+
+  // -------------------------------------------------------------------------
+  // Fila 40 de PRD-004 — el entrypoint del worker existe donde se dice
+  // -------------------------------------------------------------------------
+  it("fila 40 (PRD-004): el build emite dist/apps/api/src/worker.js", () => {
+    // La misma trampa que la fila 1 vigila para `main.js`: la salida cuelga del
+    // `rootDir` INFERIDO —la raíz del repositorio— y no de `src/`, así que los
+    // defaults de las herramientas apuntan a `dist/worker.js`, que no existe.
+    // El paso 3 de §10 configura este arranque a mano en Railway; si la ruta
+    // cambiara, el servicio de cron levantaría el `CMD` de la imagen, que es el
+    // servidor HTTP — y eso no parece un fallo, parece un despliegue correcto.
+    const emitted = readFileSync(join(API_ROOT, WORKER_ENTRYPOINT), "utf8");
+    expect(emitted).toContain("require(");
+
+    // Y `package.json` lo lanza por esa misma ruta: dos sitios, una ruta.
+    const pkg = JSON.parse(readFileSync(join(API_ROOT, "package.json"), "utf8"));
+    expect(pkg.scripts["start:worker"]).toContain(WORKER_ENTRYPOINT);
+  });
+
+  // -------------------------------------------------------------------------
+  // Fila 41 de PRD-004 — el servicio HTTP se niega a arrancar con PADDLE_API_KEY
+  // -------------------------------------------------------------------------
+  it("fila 41 (PRD-004): con PADDLE_API_KEY presente el proceso sale 1 y la nombra", async () => {
+    // Es el ÚNICO guarda que se dispara porque una variable SÍ está (§8.1). Se
+    // afirma desde un proceso hijo y no llamando a `resolveApiConfig()` porque
+    // lo que el control promete es que el SERVICIO no arranque: los dos caminos
+    // por los que la credencial llega aquí —una sobrescritura de arranque
+    // ignorada por Railway, un `.env` compartido en auto-hospedaje— producen
+    // exactamente este `spawn` de `main.js` con la variable puesta.
+    const child = bootEntrypoint({
+      PORT: String(await freePort()),
+      DATABASE_URL: DEAD_DATABASE_URL,
+      AUTH_SECRET: TEST_AUTH_SECRET,
+      AUTH_COOKIE_NAME: TEST_COOKIE_NAME,
+      PADDLE_WEBHOOK_SECRET: TEST_PADDLE_SECRET,
+      PADDLE_API_KEY: "pdl_apikey_de_pruebas",
+    });
+
+    const result = await waitForExit(child);
+    const output = `${result.stdout}${result.stderr}`;
+
+    expect(result.code).toBe(1);
+    expect(output).toContain("PADDLE_API_KEY");
+    // El mensaje nombra la variable; el VALOR no se registra nunca.
+    expect(output).not.toContain("pdl_apikey_de_pruebas");
+  }, 60_000);
+
+  it("fila 41 (PRD-004): una PADDLE_API_KEY vacía también tumba el arranque", async () => {
+    // "Presente" es presente, con valor o sin él: lo que el operador comprueba
+    // es "está o no está", y un segundo criterio invisible sería justo lo que
+    // este guarda existe para no tener.
+    const child = bootEntrypoint({
+      PORT: String(await freePort()),
+      DATABASE_URL: DEAD_DATABASE_URL,
+      AUTH_SECRET: TEST_AUTH_SECRET,
+      AUTH_COOKIE_NAME: TEST_COOKIE_NAME,
+      PADDLE_WEBHOOK_SECRET: TEST_PADDLE_SECRET,
+      PADDLE_API_KEY: "",
+    });
+
+    const result = await waitForExit(child);
+    expect(result.code).toBe(1);
+    expect(`${result.stdout}${result.stderr}`).toContain("PADDLE_API_KEY");
+  }, 60_000);
+
+  // -------------------------------------------------------------------------
+  // Fila 42 de PRD-004 — la suite existente sobrevive al guarda
+  // -------------------------------------------------------------------------
+  it("fila 42 (PRD-004): con PADDLE_API_KEY exportada por el desarrollador, los dos sitios la limpian", async () => {
+    // El guarda de §8.1 convierte una variable exportada en la shell en un fallo
+    // de TODA la suite. Los dos sitios que la limpian son distintos y ninguno
+    // cubre al otro: `applyApiEnv()` (filas 2 y las suites de acceso, cobro y
+    // límite de tasa) y `bootEntrypoint` (filas 1 y 3, que esparcen
+    // `...process.env` sin pasar por `applyApiEnv()`).
+    const exported = "pdl_apikey_exportada_por_el_desarrollador";
+    process.env.PADDLE_API_KEY = exported;
+
+    try {
+      // Sitio 1 — `applyApiEnv()`, el camino de las filas 2 y 3 de PRD-003 §9.
+      applyApiEnv();
+      expect(process.env.PADDLE_API_KEY).toBeUndefined();
+      expect(() => resolveApiConfig()).not.toThrow();
+
+      // Sitio 2 — `bootEntrypoint`, el camino de la fila 1: el proceso hijo
+      // hereda `process.env`, así que se vuelve a ensuciar a propósito.
+      process.env.PADDLE_API_KEY = exported;
+      const port = await freePort();
+      const child = bootEntrypoint({
+        PORT: String(port),
+        DATABASE_URL: DEAD_DATABASE_URL,
+        AUTH_SECRET: TEST_AUTH_SECRET,
+        AUTH_COOKIE_NAME: TEST_COOKIE_NAME,
+        PADDLE_WEBHOOK_SECRET: TEST_PADDLE_SECRET,
+      });
+
+      try {
+        const response = await waitForHealth(port, 20_000);
+        expect(response.status).toBe(200);
+      } finally {
+        child.kill("SIGKILL");
+      }
+    } finally {
+      delete process.env.PADDLE_API_KEY;
+    }
+  }, 60_000);
 });
 
 describe("DI bajo Vitest", () => {

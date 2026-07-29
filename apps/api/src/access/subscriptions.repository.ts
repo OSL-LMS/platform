@@ -1,15 +1,22 @@
 // Acceso a la tabla `subscriptions`. Es la costura que permite que las filas
-// 13-18 de §9 mockeen el repositorio con un override de provider y no toquen
-// Postgres.
+// 13-18 de PRD-003 §9 mockeen el repositorio con un override de provider y no
+// toquen Postgres.
 //
 // Las sentencias son EXACTAMENTE las de `src/lib/access.ts`: el
 // `onConflictDoUpdate` y el `onConflictDoNothing` son lo que hace segura la
-// convivencia de los dos servicios durante la migración (§6, §10 paso 4).
+// convivencia de los dos servicios durante la migración (PRD-003 §6, §10 paso 4).
+//
+// LO QUE AÑADE PRD-004: `listAll` y `updateStatusIfUnchanged`, que usa SOLO el
+// reconciliador, más un parámetro opcional en `upsertStatus`. Las tres firmas
+// existentes siguen valiendo lo mismo llamadas como hasta ahora — el servicio
+// HTTP no cambia una línea— y eso es una condición del PRD, no una cortesía: las
+// filas 5 y 6 de PRD-004 §9 sostienen que el webhook escriba exactamente lo que
+// escribía.
 //
 // Regla de código: identificadores en inglés, comentarios en español.
 
 import { Inject, Injectable } from "@nestjs/common";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { DRIZZLE, type Database } from "../db/drizzle.module.ts";
 import { subscriptions, type Subscription } from "../db/schema.ts";
@@ -21,6 +28,15 @@ export type SubscriptionChanges = {
   updatedAt: Date;
   paddleSubscriptionId?: string;
 };
+
+/** Las cuatro columnas que el barrido necesita de cada fila (PRD-004 §6.4). No
+ *  se traen `trial_ends_at` ni las marcas de tiempo porque el barrido no las
+ *  lee y NUNCA las escribe: pedir menos columnas es también la forma de que un
+ *  cambio futuro no las arrastre por descuido a un `set`. */
+export type SubscriptionSnapshot = Pick<
+  Subscription,
+  "id" | "email" | "status" | "paddleSubscriptionId"
+>;
 
 @Injectable()
 export class SubscriptionsRepository {
@@ -52,11 +68,84 @@ export class SubscriptionsRepository {
   /** UPSERT a propósito: el pago puede llegar sin fila previa —/checkout es
    *  público y los flujos hospedados de Paddle no pasan por el tutor—, y un
    *  UPDATE a secas afectaría 0 filas en silencio, dejando a alguien pagando
-   *  sin acceso. */
-  async upsertStatus(email: string, changes: SubscriptionChanges): Promise<void> {
-    await this.db
+   *  sin acceso.
+   *
+   *  `preserveCanceled` es del reconciliador y SOLO de él (PRD-004 §6.5). Con él,
+   *  el `onConflictDoUpdate` lleva predicado y no pisa una fila que ya esté
+   *  `canceled`: el alta del barrido solo ocurre cuando el `Map` de la carga no
+   *  tenía el correo, y una fila que aparece entre la carga y la escritura la
+   *  creó el webhook con un dato MÁS FRESCO. Sin el predicado, un upsert
+   *  incondicional la dejaría en `active` — y como el barrido nunca revoca,
+   *  para siempre.
+   *
+   *  EL DEFECTO ES SIN PREDICADO, y tiene que serlo: el webhook llega a
+   *  `active` desde `canceled` cada vez que alguien se vuelve a suscribir, así
+   *  que aplicárselo a él sería negarle esa escritura.
+   *
+   *  @returns `true` si la sentencia dejó una fila (insertada o actualizada).
+   *  `false` solo es posible con `preserveCanceled`, y significa que el
+   *  conflicto se descartó: el llamante lo cuenta como `desincronizado`. */
+  async upsertStatus(
+    email: string,
+    changes: SubscriptionChanges,
+    options: { preserveCanceled?: boolean } = {}
+  ): Promise<boolean> {
+    const written = await this.db
       .insert(subscriptions)
       .values({ email, ...changes })
-      .onConflictDoUpdate({ target: subscriptions.email, set: changes });
+      .onConflictDoUpdate({
+        target: subscriptions.email,
+        set: changes,
+        ...(options.preserveCanceled ? { setWhere: ne(subscriptions.status, "canceled") } : {}),
+      })
+      .returning({ id: subscriptions.id });
+
+    return written.length > 0;
+  }
+
+  /** La tabla entera, indexable en memoria por el barrido (PRD-004 §6.4).
+   *
+   *  UNA CARGA Y NO UN `SELECT … LIMIT 1` POR ITERACIÓN, y no es una
+   *  optimización: `subscriptions.email` es `text` plano con unique, así que
+   *  `Estudiante@Ejemplo.test` y `estudiante@ejemplo.test` conviven como dos
+   *  filas. Un `LIMIT 1` devolvería una arbitraria —si es la que ya está
+   *  `active`, no hay divergencia que reparar y el estudiante sigue bloqueado—,
+   *  que es exactamente el escenario que el PRD existe para arreglar. */
+  async listAll(): Promise<SubscriptionSnapshot[]> {
+    return this.db
+      .select({
+        id: subscriptions.id,
+        email: subscriptions.email,
+        status: subscriptions.status,
+        paddleSubscriptionId: subscriptions.paddleSubscriptionId,
+      })
+      .from(subscriptions);
+  }
+
+  /** Compare-and-set: `UPDATE … WHERE id = $1 AND status = $observado`, donde
+   *  `$observado` es el estado que la fila tenía CUANDO SE CARGÓ LA TABLA
+   *  (PRD-004 §6.6).
+   *
+   *  La carga única abre una ventana de hasta `RECONCILE_DEADLINE_MS` entre
+   *  lectura y escritura. El caso que lo hace necesario aun escribiendo solo
+   *  hacia `active`: se lee Paddle todavía `active` y la fila local en `trial`
+   *  vencido —divergencia que SÍ se va a escribir—, el estudiante cancela, el
+   *  webhook escribe `canceled`, y el barrido pisaría un dato más fresco. Como
+   *  el barrido nunca revoca, esa fila se quedaría `active` para siempre.
+   *
+   *  @returns `false` cuando afectó cero filas, o sea cuando alguien escribió
+   *  entretanto: el llamante se salta la fila y cuenta `desincronizado`. */
+  async updateStatusIfUnchanged(
+    id: string,
+    observedStatus: Subscription["status"],
+    changes: SubscriptionChanges
+  ): Promise<boolean> {
+    const written = await this.db
+      .update(subscriptions)
+      .set(changes)
+      .where(and(eq(subscriptions.id, id), eq(subscriptions.status, observedStatus)))
+      .returning({ id: subscriptions.id });
+
+    return written.length > 0;
   }
 }
