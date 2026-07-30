@@ -41,7 +41,26 @@ export class AccessController {
 
   /** Crea el trial si no existe y devuelve el acceso. Idempotente en dos
    *  sentidos: una segunda llamada del usuario no reinserta ni reemite
-   *  `trial_started`, y un reintento del cliente tras un timeout tampoco. */
+   *  `trial_started`, y un reintento del cliente tras un timeout tampoco.
+   *
+   *  SIN LLAMANTE DESDE EL PASO E DE PRD-005 §10, Y SE QUEDA A PROPÓSITO.
+   *  Su único consumidor era `fetchAccessTrial()` desde el handler local de
+   *  `/api/chat`, que ese paso retiró: hoy el trial lo crea `TutorService` en
+   *  proceso, y §8.4 registra que `POST /v1/access/trial` dejó de ser el único
+   *  creador de la fila. §10 pedía decidir entre retirarlo o dejar escrito por
+   *  qué no; esto es lo segundo, con dos razones:
+   *
+   *  1. NO CONCEDE NADA NUEVO. Permite a una sesión válida crear SU PROPIO
+   *     trial — exactamente lo que ese mismo estudiante consigue mandándole un
+   *     mensaje al tutor. La superficie es de más, el privilegio no.
+   *  2. RETIRARLO SERÍA DERIVA CONTRA UN DOCUMENTO CONGELADO. Las filas 21 y 22
+   *     de PRD-003 §9 lo prueban, y PRD-003 está `Implemented`: borrar el
+   *     endpoint borra parte de su plan de pruebas, que es justo lo que la
+   *     regla de snapshots frozen existe para no permitir.
+   *
+   *  Lo que sí queda dicho para el siguiente que pase: si algún día hace falta
+   *  recortar superficie de `apps/api`, éste es el primer candidato, y el
+   *  trabajo correcto es un PRD que supersede a PRD-003, no un borrado suelto. */
   @Post("trial")
   @HttpCode(HttpStatus.OK)
   ensureTrial(@Req() request: AuthenticatedRequest): Promise<Access> {

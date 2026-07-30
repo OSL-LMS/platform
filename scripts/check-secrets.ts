@@ -127,7 +127,12 @@ const SECRET = "sk-ant-api03-un-valor-que-no-debe-aparecer-en-ningun-sitio";
   );
   assert.match(
     handler,
-    /from "@\/lib\/tutor-turn"/,
+    // LAS DOS FORMAS DE IMPORT, y la segunda es la que queda tras el paso E:
+    // el handler ya no usa nada de este módulo —el cuerpo y el mapeo de errores
+    // son del cliente—, así que lo importa POR EFECTO (`import "@/lib/…";`)
+    // sólo para armar el guarda. Un patrón que exija `from` daría por roto
+    // exactamente el estado final que este check existe para vigilar.
+    /import\s+(?:[^;]*?\s+from\s+)?["']@\/lib\/tutor-turn["']/,
     "src/app/api/chat/route.ts tiene que importar src/lib/tutor-turn.ts: es lo " +
       "que hace que el guarda del paso E se cargue en el arranque de Next y no " +
       "sea una función que nadie ejecuta"
