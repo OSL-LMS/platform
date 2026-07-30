@@ -26,6 +26,8 @@ export type ApiConfig = {
   posthogApiKey: string | undefined;
   posthogHost: string;
   poolMax: number;
+  anthropicApiKey: string;
+  curriculumSlug: string;
 };
 
 /** Token de inyección de la configuración. */
@@ -43,12 +45,11 @@ export const API_CONFIG = "API_CONFIG";
  *  conexiones es una propiedad del reparto entre servicios, no una perilla. */
 const HTTP_POOL_MAX = 8;
 
-function required(env: NodeJS.ProcessEnv, key: string): string {
+function required(env: NodeJS.ProcessEnv, key: string, where = "PRD-003 §5.1 y §10 paso 1"): string {
   const value = env[key];
   if (!value) {
     throw new ConfigError(
-      `apps/api no puede arrancar: falta la variable de entorno ${key}. ` +
-        "Ver PRD-003 §5.1 y §10 paso 1."
+      `apps/api no puede arrancar: falta la variable de entorno ${key}. Ver ${where}.`
     );
   }
   return value;
@@ -109,5 +110,21 @@ export function resolveApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfi
     posthogHost: env.POSTHOG_HOST ?? "https://us.i.posthog.com",
 
     poolMax: HTTP_POOL_MAX,
+
+    // OBLIGATORIAS Y SIN DEFECTO desde PRD-005 §5.1 (goal 6, mismo criterio que
+    // el goal 5 de PRD-003). Las dos son del turno del tutor y las dos fallan
+    // MAL si se les da un defecto:
+    //
+    //  - Sin `ANTHROPIC_API_KEY` el SDK cae a leerla de `process.env` por su
+    //    cuenta y el fallo aparece en la primera petición de un estudiante, a
+    //    mitad de un stream ya abierto, o sea en el sitio donde §5.4 ya no puede
+    //    devolver un cuerpo de error.
+    //  - `CURRICULUM_SLUG` sin defecto es la misma regla que la raíz ya aplica
+    //    (`src/lib/curriculum.ts:43`): un `"contextia"` horneado dejaría un
+    //    literal del cliente en el código y haría que un entorno mal configurado
+    //    seleccionase un currículo ajeno en silencio en vez de fallar. NUNCA se
+    //    deriva del request: es configuración de servidor.
+    anthropicApiKey: required(env, "ANTHROPIC_API_KEY", "PRD-005 §5.1 y §10 paso C"),
+    curriculumSlug: required(env, "CURRICULUM_SLUG", "PRD-005 §5.1 y §10 paso C"),
   };
 }

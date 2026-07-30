@@ -2,7 +2,8 @@
 // (src/lib/api-client.ts y src/app/api/t/route.ts). Se ejecuta con:
 //   node scripts/check-access-bridge.ts
 //
-// Cubre las filas 34-39 y 41 de PRD-003 §9. Todas afirman sobre funciones
+// Cubre las filas 34-39 y 41 de PRD-003 §9, más la fila 38b de PRD-005 §9
+// (la cookie troceada degrada y ya no lanza). Todas afirman sobre funciones
 // puras a propósito (§9): este runner es Node pelado, no conoce los `paths`
 // de tsconfig.json, no transforma JSX y no puede ejecutar `cookies()` de
 // next/headers fuera del ámbito de una petición real — por eso api-client.ts
@@ -86,37 +87,95 @@ withEnv({ AUTH_COOKIE_NAME: "authjs.session-token", API_BASE_URL: undefined }, (
   assert.throws(() => resolveClientConfig(), /API_BASE_URL/);
 });
 withEnv(
-  { AUTH_COOKIE_NAME: "__Secure-authjs.session-token", API_BASE_URL: "http://localhost:3001", ACCESS_TIMEOUT_MS: undefined },
+  { AUTH_COOKIE_NAME: "__Secure-authjs.session-token", API_BASE_URL: "http://localhost:3001", ACCESS_TIMEOUT_MS: undefined, TUTOR_TIMEOUT_MS: undefined },
   () => {
     const config = resolveClientConfig();
     assert.equal(config.authCookieName, "__Secure-authjs.session-token");
     assert.equal(config.apiBaseUrl, "http://localhost:3001");
     assert.equal(config.accessTimeoutMs, 2000, "por defecto 2000ms si se omite ACCESS_TIMEOUT_MS");
+    // PRD-005 §5.3: otro orden de magnitud y variable propia. No comparten
+    // defecto a propósito — éste acota la espera hasta la primera cabecera de
+    // apps/api, no la llamada entera.
+    assert.equal(config.tutorTimeoutMs, 10000, "por defecto 10000ms si se omite TUTOR_TIMEOUT_MS");
   }
 );
+withEnv(
+  { AUTH_COOKIE_NAME: "authjs.session-token", API_BASE_URL: "http://localhost:3001", TUTOR_TIMEOUT_MS: "500" },
+  () => {
+    assert.equal(resolveClientConfig().tutorTimeoutMs, 500);
+  }
+);
+// Un valor no numérico, cero o negativo cae al defecto en vez de dejar pasar un
+// AbortController que aborta al instante.
+for (const bad of ["", "0", "-1", "diez"]) {
+  withEnv(
+    { AUTH_COOKIE_NAME: "authjs.session-token", API_BASE_URL: "http://localhost:3001", TUTOR_TIMEOUT_MS: bad },
+    () => {
+      assert.equal(resolveClientConfig().tutorTimeoutMs, 10000, `TUTOR_TIMEOUT_MS="${bad}" debía caer al defecto`);
+    }
+  );
+}
 
 // ---------------------------------------------------------------------------
-// Fila 35 — el resolutor de cookie falla ruidosamente en sus dos casos.
+// Fila 35 de PRD-003 §9 — el resolutor de cookie falla ruidosamente en sus dos
+// casos. Fila 38b de PRD-005 §9 — y en LOS DOS degrada sin lanzar.
 // ---------------------------------------------------------------------------
+
+// Ejecuta `fn` capturando console.error y devuelve cuántas veces registró.
+function countingConsoleError<T>(fn: () => T): { result: T; logged: number } {
+  const original = console.error;
+  let logged = 0;
+  console.error = () => {
+    logged++;
+  };
+  try {
+    return { result: fn(), logged };
+  } finally {
+    console.error = original;
+  }
+}
+
 {
-  // (a) Cookie troceada: lanza en vez de enviar un token truncado.
-  const chunkedJar = new Map([["authjs.session-token.0", "primer-trozo"]]);
-  assert.throws(() => resolveSessionCookie(chunkedJar, "authjs.session-token"));
+  // (a) Cookie TROCEADA: degrada a {error:true} con registro ruidoso, y NO
+  // lanza. Hasta PRD-005 esta rama lanzaba, y era el único `throw` del módulo:
+  // dentro del handler de /api/chat eso no es 401, es 500. La condición la
+  // puede provocar un TERCERO —la cookie de sesión es host-only, pero un
+  // subdominio puede plantar `<nombre>.0` con Domain=.contextia.io y ese trozo
+  // sí llega al apex—, así que un throw aquí es un 500 a demanda (§9 fila 38b).
+  for (const name of ["authjs.session-token", "__Secure-authjs.session-token"]) {
+    const chunkedJar = new Map([[`${name}.0`, "primer-trozo"]]);
+    const { result, logged } = countingConsoleError(() =>
+      resolveSessionCookie(chunkedJar, name)
+    );
+    assert.deepEqual(
+      result,
+      { error: true },
+      `"${name}.0" debía degradar, no lanzar: lanzar convierte un 401 en un 500 ` +
+        "que puede provocar cualquier subdominio"
+    );
+    assert.equal(logged, 1, "debía registrar ruidosamente el troceado");
+  }
+
+  // Y sigue sin reenviarse un token truncado: con el trozo presente, el valor
+  // entero que hubiera al lado tampoco se usa. Enviar uno truncado daría un 401
+  // indistinguible de un fallo de secreto (PRD-003 §11, sigue diferido).
+  {
+    const plantedJar = new Map([
+      ["authjs.session-token.0", "trozo-plantado"],
+      ["authjs.session-token", "token-bueno"],
+    ]);
+    const { result } = countingConsoleError(() =>
+      resolveSessionCookie(plantedJar, "authjs.session-token")
+    );
+    assert.deepEqual(result, { error: true });
+  }
 
   // (b) Nombre resuelto ≠ configurado: registra y devuelve {error:true} — SIN
   // lanzar, porque "nunca lanza" es lo que sostiene la política de §5.3.
   const mismatchJar = new Map([["__Secure-authjs.session-token", "un-token"]]);
-  const originalConsoleError = console.error;
-  let loggedCount = 0;
-  console.error = () => {
-    loggedCount++;
-  };
-  let mismatchResult: unknown;
-  try {
-    mismatchResult = resolveSessionCookie(mismatchJar, "authjs.session-token");
-  } finally {
-    console.error = originalConsoleError;
-  }
+  const { result: mismatchResult, logged: loggedCount } = countingConsoleError(() =>
+    resolveSessionCookie(mismatchJar, "authjs.session-token")
+  );
   assert.deepEqual(mismatchResult, { error: true });
   assert.equal(loggedCount, 1, "debía registrar ruidosamente el desajuste");
 
@@ -305,5 +364,5 @@ await (async () => {
 })();
 
 console.log(
-  "check-access-bridge: OK — filas 34-39 y 41 de PRD-003 §9 cubiertas."
+  "check-access-bridge: OK — filas 34-39 y 41 de PRD-003 §9 y fila 38b de PRD-005 §9 cubiertas."
 );

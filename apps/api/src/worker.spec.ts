@@ -34,6 +34,16 @@ function applyWorkerEnv(overrides: Record<string, string | undefined> = {}): voi
     POSTHOG_API_KEY: undefined,
     RECONCILE_APPLY: undefined,
     RECONCILE_DEADLINE_MS: undefined,
+    // Se BORRA, y es obligatorio borrarla: desde PRD-005 §8.3
+    // `resolveWorkerConfig()` lanza si la variable está PRESENTE, así que a un
+    // desarrollador que la tenga exportada —cosa normal, la raíz la necesita— se
+    // le caerían todas las filas de este fichero con un mensaje que nombra el
+    // problema equivocado. Es el guarda simétrico al de `PADDLE_API_KEY` en
+    // `config.ts`, y por tanto el mismo modo de fallo que documenta la fila 42
+    // de PRD-004 §9. Éste es el TERCER sitio que limpia el entorno del worker;
+    // los otros dos son `spawnWorker` en `test/worker-boot.e2e-spec.ts` y
+    // `applyApiEnv` en `test/helpers.ts`, y ninguno cubre a los otros.
+    ANTHROPIC_API_KEY: undefined,
     ...overrides,
   };
 

@@ -22,6 +22,18 @@ export const TEST_COOKIE_NAME = "authjs.session-token";
 export const SECURE_COOKIE_NAME = "__Secure-authjs.session-token";
 export const TEST_PADDLE_SECRET = "pdl_ntfset_secreto_de_pruebas";
 
+/** Clave FALSA de Anthropic. NINGUNA fila la usa contra la red: los tests del
+ *  tutor sustituyen `ANTHROPIC_CLIENT` con un doble, y donde no lo sustituyen
+ *  (acceso, cobro, tasa) el cliente se construye y nunca se llama. Está para
+ *  pasar el guarda de `resolveApiConfig()`, que la exige sin defecto. */
+export const TEST_ANTHROPIC_KEY = "sk-ant-clave-de-pruebas";
+
+/** Currículo de pruebas. Los tests que necesitan nodos los insertan bajo este
+ *  slug; los que no, se benefician de que no exista — el par vacío es la rama
+ *  "el estudiante no ha declarado lección" y no un error. NUNCA es `contextia`:
+ *  un test que apuntara al currículo real dependería de que estuviera cargado. */
+export const TEST_CURRICULUM_SLUG = "curriculo-de-pruebas";
+
 /** Base inalcanzable, no apagada: puerto 1 rechaza la conexión al instante, que
  *  es justo lo que hace falta para demostrar que un 401 no llega a Postgres. */
 export const DEAD_DATABASE_URL = "postgres://nadie:nadie@127.0.0.1:1/inalcanzable";
@@ -92,6 +104,13 @@ export function applyApiEnv(overrides: Record<string, string | undefined> = {}):
     AUTH_SECRET: TEST_AUTH_SECRET,
     AUTH_COOKIE_NAME: TEST_COOKIE_NAME,
     PADDLE_WEBHOOK_SECRET: TEST_PADDLE_SECRET,
+    // Las dos de PRD-005 §5.1: obligatorias y sin defecto, así que sin ellas
+    // `resolveApiConfig()` tumba TODA suite que construya el contenedor. Se
+    // ponen con valor explícito y no se heredan del shell a propósito — quien
+    // tenga una `ANTHROPIC_API_KEY` real exportada no debe verla entrar en un
+    // test, y `CURRICULUM_SLUG` heredada apuntaría al currículo de verdad.
+    ANTHROPIC_API_KEY: TEST_ANTHROPIC_KEY,
+    CURRICULUM_SLUG: TEST_CURRICULUM_SLUG,
     // Sin clave de PostHog el cliente es null y `track()` es un no-op: los
     // tests que cuentan eventos espían el provider, no la red.
     POSTHOG_API_KEY: undefined,

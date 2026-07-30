@@ -25,6 +25,10 @@
 //    worker no atiende peticiones y no verifica firmas; exigirlos metería el
 //    secreto de sesión —falsificable, sin revocación individual— en un tercer
 //    servicio (goal 13, §7.1).
+//  - `ANTHROPIC_API_KEY` aquí es MOTIVO DE RECHAZO del arranque (PRD-005 §8.3),
+//    el espejo del guarda de `PADDLE_API_KEY` de `config.ts`. Ni
+//    `CURRICULUM_SLUG` ni la clave de Anthropic se piden: el barrido no compone
+//    prompts ni lee el currículo.
 //
 // EL MÓDULO DE ABAJO ES LA OTRA MITAD, y la que trabaja: en Nest un módulo
 // global no registra sus providers globalmente, registra LO QUE EXPORTA. La
@@ -113,6 +117,32 @@ function resolveDeadlineMs(env: NodeJS.ProcessEnv): number {
 }
 
 export function resolveWorkerConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
+  // FALLA CERRADO ANTE LA PRESENCIA (PRD-005 §8.3). Es el espejo exacto del
+  // guarda de `PADDLE_API_KEY` en `config.ts`, con los papeles invertidos: allí
+  // la credencial cara pertenece a ESTE proceso y sobra en el HTTP; aquí la
+  // credencial de Anthropic pertenece al servicio HTTP y sobra en éste. El
+  // reconciliador no habla con Anthropic — no compone prompts, no abre streams,
+  // no importa el SDK.
+  //
+  // Los dos caminos que la traen son los mismos que documenta `config.ts` y los
+  // dos fallan APARENTANDO ÉXITO: una sobrescritura de arranque que Railway no
+  // aplique, y un solo `.env` compartido por los dos entrypoints en
+  // auto-hospedaje (repositorio público, AGPL-3.0). PRD-003 §1.1 prohíbe que una
+  // propiedad de seguridad dependa de dónde se ponga una variable, y "retirarla
+  // del otro servicio" es exactamente eso.
+  //
+  // Una cadena VACÍA también cuenta como presente, por la misma razón que allí:
+  // lo que el operador comprueba es "está o no está". El mensaje NOMBRA la
+  // variable y nunca imprime su valor.
+  if (env.ANTHROPIC_API_KEY !== undefined) {
+    throw new ConfigError(
+      "El worker de reconciliación no puede arrancar: ANTHROPIC_API_KEY está " +
+        "presente en su entorno. Esa credencial pertenece SOLO al servicio HTTP, " +
+        "que es el único que abre streams del tutor; el reconciliador no llama a " +
+        "Anthropic. Retírala de este servicio. Ver PRD-005 §8.3."
+    );
+  }
+
   // El orden es el de la tabla de §7.1 y es deliberado: lo que el operador tiene
   // que poner primero se le nombra primero.
   const databaseUrl = required(env, "DATABASE_URL", "Es la misma base que el servicio HTTP.");

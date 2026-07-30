@@ -13,6 +13,7 @@ import { ConfigModule } from "./config.module.ts";
 import { DrizzleModule } from "./db/drizzle.module.ts";
 import { HealthController } from "./health/health.controller.ts";
 import { SessionModule } from "./session/session.module.ts";
+import { TutorModule } from "./tutor/tutor.module.ts";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { SessionModule } from "./session/session.module.ts";
     SessionModule,
     AccessModule,
     BillingModule,
+    TutorModule,
   ],
   controllers: [HealthController],
   // Global y no por controlador: un endpoint nuevo nace acotado en vez de nacer

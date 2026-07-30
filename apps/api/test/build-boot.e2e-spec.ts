@@ -1,6 +1,7 @@
 // La configuración de build de apps/api, vigilada por los dos caminos.
 //
-// Cubre las filas 1, 2 y 3 de PRD-003 §9, y las filas 40, 41 y 42 de PRD-004 §9.
+// Cubre las filas 1, 2 y 3 de PRD-003 §9, las filas 40, 41 y 42 de PRD-004 §9, y
+// la fila 28 de PRD-005 §9.
 //
 // Por qué hay una fila que compila y arranca de verdad: el camino de BUILD es
 // donde §Design Decisions demuestra que el import cruzado a
@@ -32,8 +33,10 @@ import {
   API_ROOT,
   DEAD_DATABASE_URL,
   REPO_ROOT,
+  TEST_ANTHROPIC_KEY,
   TEST_AUTH_SECRET,
   TEST_COOKIE_NAME,
+  TEST_CURRICULUM_SLUG,
   TEST_PADDLE_SECRET,
   applyApiEnv,
 } from "./helpers.ts";
@@ -73,7 +76,21 @@ function bootEntrypoint(env: Record<string, string | undefined>) {
     // `spawn` omite del entorno las claves con valor `undefined`, que es lo
     // mismo que ya hace la fila 3 con `AUTH_COOKIE_NAME`. Va antes del spread
     // para que la fila 41 pueda ponerla a propósito.
-    env: { ...process.env, PADDLE_API_KEY: undefined, ...env },
+    //
+    // Las dos de PRD-005 §5.1 van aquí por lo MISMO y por lo CONTRARIO: son
+    // obligatorias desde esta fase, así que sin ellas fallarían TODAS las filas
+    // de este fichero nombrando el problema equivocado; y se ponen con valor
+    // fijo en vez de heredarse porque quien tenga una `ANTHROPIC_API_KEY` real
+    // exportada no debe verla entrar en un proceso de prueba, y una
+    // `CURRICULUM_SLUG` heredada apuntaría al currículo de verdad. Antes del
+    // spread para que la fila 28 pueda quitarlas a propósito.
+    env: {
+      ...process.env,
+      PADDLE_API_KEY: undefined,
+      ANTHROPIC_API_KEY: TEST_ANTHROPIC_KEY,
+      CURRICULUM_SLUG: TEST_CURRICULUM_SLUG,
+      ...env,
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
 }
@@ -173,6 +190,54 @@ describe("build y arranque", () => {
       const result = await waitForExit(bootEntrypoint(env));
       expect(result.code, `${missing} ausente debería tumbar el arranque`).not.toBe(0);
       expect(`${result.stdout}${result.stderr}`).toContain(missing);
+    }
+  }, 120_000);
+
+  // -------------------------------------------------------------------------
+  // Fila 28 de PRD-005 — el tutor tampoco arranca sin su configuración
+  // -------------------------------------------------------------------------
+  it("fila 28 (PRD-005): sin ANTHROPIC_API_KEY o sin CURRICULUM_SLUG el proceso no levanta y nombra la variable", async () => {
+    // Goal 6, mismo criterio que el goal 5 de PRD-003: la configuración que el
+    // turno necesita falla AL ARRANCAR y no en la primera petición de un
+    // estudiante — que con un endpoint de streaming sería a mitad de una
+    // respuesta ya empezada, donde §5.4 ya no puede devolver un cuerpo de error.
+    for (const missing of ["ANTHROPIC_API_KEY", "CURRICULUM_SLUG"]) {
+      const env: Record<string, string | undefined> = {
+        PORT: String(await freePort()),
+        DATABASE_URL: DEAD_DATABASE_URL,
+        AUTH_SECRET: TEST_AUTH_SECRET,
+        AUTH_COOKIE_NAME: TEST_COOKIE_NAME,
+        PADDLE_WEBHOOK_SECRET: TEST_PADDLE_SECRET,
+      };
+      env[missing] = undefined;
+
+      const result = await waitForExit(bootEntrypoint(env));
+      const output = `${result.stdout}${result.stderr}`;
+
+      expect(result.code, `${missing} ausente debería tumbar el arranque`).not.toBe(0);
+      expect(output).toContain(missing);
+      // El mensaje nombra la variable; el VALOR de la clave no se registra nunca.
+      expect(output).not.toContain(TEST_ANTHROPIC_KEY);
+    }
+  }, 120_000);
+
+  it("fila 28 (PRD-005): una cadena vacía cuenta como ausente en las dos", async () => {
+    // `required()` usa `!value`, así que `""` es ausencia. Es lo contrario del
+    // guarda de PADDLE_API_KEY —donde "" cuenta como PRESENTE— y la asimetría es
+    // correcta: allí se comprueba "está o no está", aquí "sirve o no sirve".
+    for (const empty of ["ANTHROPIC_API_KEY", "CURRICULUM_SLUG"]) {
+      const env: Record<string, string | undefined> = {
+        PORT: String(await freePort()),
+        DATABASE_URL: DEAD_DATABASE_URL,
+        AUTH_SECRET: TEST_AUTH_SECRET,
+        AUTH_COOKIE_NAME: TEST_COOKIE_NAME,
+        PADDLE_WEBHOOK_SECRET: TEST_PADDLE_SECRET,
+      };
+      env[empty] = "";
+
+      const result = await waitForExit(bootEntrypoint(env));
+      expect(result.code, `${empty} vacía debería tumbar el arranque`).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toContain(empty);
     }
   }, 120_000);
 
@@ -280,6 +345,29 @@ describe("build y arranque", () => {
       delete process.env.PADDLE_API_KEY;
     }
   }, 60_000);
+
+  it("fila 42 (PRD-004, extendida): la clave REAL de Anthropic del desarrollador no entra en un test", async () => {
+    // `ANTHROPIC_API_KEY` es el caso contrario al de arriba —aquí es OBLIGATORIA,
+    // no prohibida— así que una exportada en el shell no rompería nada: se
+    // usaría, en silencio, y ninguna suite se pondría roja. Eso es peor que un
+    // fallo. Los dos sitios la SOBRESCRIBEN con la de pruebas por eso.
+    const real = "sk-ant-api03-clave-real-del-desarrollador";
+    process.env.ANTHROPIC_API_KEY = real;
+    process.env.CURRICULUM_SLUG = "contextia";
+
+    try {
+      applyApiEnv();
+      expect(process.env.ANTHROPIC_API_KEY).toBe(TEST_ANTHROPIC_KEY);
+      expect(process.env.CURRICULUM_SLUG).toBe(TEST_CURRICULUM_SLUG);
+
+      const config = resolveApiConfig();
+      expect(config.anthropicApiKey).toBe(TEST_ANTHROPIC_KEY);
+      expect(config.curriculumSlug).toBe(TEST_CURRICULUM_SLUG);
+    } finally {
+      delete process.env.ANTHROPIC_API_KEY;
+      delete process.env.CURRICULUM_SLUG;
+    }
+  });
 });
 
 describe("DI bajo Vitest", () => {
