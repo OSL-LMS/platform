@@ -391,7 +391,17 @@ El resto sigue en el ciclo de petición, y el aviso de clase se sigue lanzando a
 2. **Hay una suscripción en toda la cuenta de Paddle.** El barrido completo sin filtro de fecha, que § 5.2 justifica como "una o dos páginas de 100", está sobredimensionado por tres órdenes de magnitud. El techo anotado en `ponytail:` (10⁴ filas) queda muy lejos.
 3. **El proceso corre desde la máquina del operador**, igual que `scripts/load-curriculum.ts`, y eso es un modo de uso legítimo y no un apaño: una pasada en seco a mano es la forma barata de contestar "¿cuánta deriva hay?" sin montar el cron.
 
-**El servicio de cron (`api-reconcile`) existe pero está Offline y sin fuente conectada**, esperando la clave de solo lectura de Paddle. Sus variables ya están puestas (`DATABASE_URL` y `POSTHOG_API_KEY` por referencia, `PADDLE_ENV=production`, `RAILWAY_DOCKERFILE_PATH=apps/api/Dockerfile.worker`), sin `PADDLE_API_KEY` y sin `RECONCILE_APPLY`. Se dejó sin fuente a propósito: conectarla antes de que exista la clave produciría un fallo de arranque por hora, correcto por diseño (goal 8) pero sin ganar nada.
+**El servicio de cron (`api-reconcile`) está en producción desde el 2026-07-29**, con `0 * * * *` (cada hora, UTC) y **sin dominio expuesto**. Variables: `DATABASE_URL` y `POSTHOG_API_KEY` por referencia a los servicios `Postgres` y `api`, `PADDLE_ENV=production`, `PADDLE_API_KEY` (clave propia acotada a lectura de suscripciones — no es la del resto del sistema), y `RAILWAY_DOCKERFILE_PATH=apps/api/Dockerfile.worker`. **`RECONCILE_APPLY` no está puesta**, así que el barrido corre en modo sin escritura: es el paso 4 de PRD-004 § 10, la semana de observación previa a encender la escritura.
+
+Primera ejecución programada, verificada en los logs del servicio:
+
+```
+[reconcile] reconcile: config resuelta env=production
+[ReconcileService] revisadas=1 reparadas=0 divergencias=0 pendiente_revocacion=0
+                   sin_correo=0 desincronizado=0 ambiguo=0 desconocido=0 aplicar=false
+```
+
+**Cómo verificar que el servicio ejecuta el worker y no el servidor HTTP**: la línea `config resuelta env=…` solo la emite `worker.ts`. Si en los logs apareciera `apps/api escuchando en el puerto`, el servicio estaría corriendo `main.js` —una API pública con la credencial de Paddle— y eso es el fallo que aparenta éxito descrito arriba. Es la primera cosa que hay que mirar si alguien recrea o reconfigura este servicio.
 
 **Deriva declarada de PRD-004** (re-revisión post-implementación, ronda 1): el PRD dice dos veces que el camino del deadline pierde el lote pendiente de PostHog. **No lo pierde.** `worker.ts` enruta todo fallo por un único `catch` que cierra el contexto con una gracia de 5 s (`CLOSE_GRACE_MS`), lo que dispara `onModuleDestroy` y con él el `shutdown()` de `AnalyticsService`. La cláusula normativa del PRD —`process.exit(1)` incondicional tras intentar cerrar— sí se cumple; lo que quedó desactualizado es la consecuencia. Se dejó así a propósito: saltarse el cierre para hacer cierto el texto sería estrictamente peor.
 
