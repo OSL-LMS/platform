@@ -1,6 +1,7 @@
 // El arranque del worker, desde un proceso hijo de verdad.
 //
-// Cubre las filas 35, 36, 37, 37b, 38, 39 y 39b de PRD-004 §9.
+// Cubre las filas 35, 36, 37, 37b, 38, 39 y 39b de PRD-004 §9, y la fila 29 de
+// PRD-005 §9.
 //
 // POR QUÉ DESDE UN PROCESO HIJO: los códigos de salida solo se afirman así
 // (`spawn` + `child.on("exit")`), y lo que estas filas prueban es el goal 8 —"el
@@ -58,6 +59,13 @@ function spawnWorker(env: Record<string, string | undefined>) {
       POSTHOG_HOST: undefined,
       RECONCILE_APPLY: undefined,
       RECONCILE_DEADLINE_MS: undefined,
+      // También borrada ANTES del spread, y por la misma razón que las de
+      // arriba llevada al extremo: desde PRD-005 §8.3 `resolveWorkerConfig()`
+      // lanza si esta variable está PRESENTE, así que un desarrollador con una
+      // `ANTHROPIC_API_KEY` exportada en su shell —cosa normal, la raíz la
+      // necesita— vería fallar TODAS las filas de este fichero con un mensaje
+      // que nombra el problema equivocado. La fila 29 la pone a propósito.
+      ANTHROPIC_API_KEY: undefined,
       // Los tres secretos del servicio HTTP también fuera: el goal 13 es que el
       // worker arranque SIN ellos, y heredarlos del shell escondería un
       // `ConfigModule` importado por error.
@@ -281,6 +289,103 @@ describe("arranque del worker de reconciliación", () => {
       expect(output).not.toContain("POSTHOG_API_KEY");
     }
   }, 120_000);
+
+  // -------------------------------------------------------------------------
+  // Fila 29 de PRD-005 — el worker RECHAZA la clave de Anthropic
+  // -------------------------------------------------------------------------
+  it("fila 29 (PRD-005): con ANTHROPIC_API_KEY presente sale 1, la nombra y no imprime su valor", async () => {
+    // Espejo exacto del guarda de `PADDLE_API_KEY` en `config.ts`, con los
+    // papeles invertidos: allí la credencial cara pertenece a ESTE proceso y
+    // sobra en el HTTP; aquí la de Anthropic pertenece al HTTP y sobra aquí. El
+    // reconciliador no habla con Anthropic.
+    //
+    // Se afirma desde un proceso hijo y no llamando a `resolveWorkerConfig()`
+    // porque lo que el control promete es que el PROCESO no arranque: los dos
+    // caminos por los que la credencial llega —una sobrescritura de arranque
+    // ignorada por Railway, un `.env` compartido en auto-hospedaje— producen
+    // exactamente este `spawn` con la variable puesta.
+    const leaked = "sk-ant-clave-que-no-debe-estar-aqui";
+    const result = await runWorker({
+      DATABASE_URL: DEAD_DATABASE_URL,
+      PADDLE_API_KEY: FAKE_API_KEY,
+      PADDLE_ENV: "sandbox",
+      ANTHROPIC_API_KEY: leaked,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("ANTHROPIC_API_KEY");
+    expect(result.output).not.toContain(leaked);
+    // Muere ANTES de construir el contenedor, igual que la fila 35: si hubiera
+    // llegado a conectar, `DEAD_DATABASE_URL` habría dejado su rechazo.
+    expect(result.output).not.toContain("ECONNREFUSED");
+    expect(result.output).not.toContain(CONFIG_LINE);
+  }, 60_000);
+
+  it("fila 29 (PRD-005): una ANTHROPIC_API_KEY vacía también tumba el arranque", async () => {
+    // "Presente" es presente, con valor o sin él — el mismo criterio que
+    // `PADDLE_API_KEY` y por la misma razón: lo que el operador comprueba es
+    // "está o no está", y un segundo criterio invisible ("está pero vacía, y
+    // entonces vale") es justo lo que este guarda existe para no tener.
+    const result = await runWorker({
+      DATABASE_URL: DEAD_DATABASE_URL,
+      PADDLE_API_KEY: FAKE_API_KEY,
+      PADDLE_ENV: "sandbox",
+      ANTHROPIC_API_KEY: "",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("ANTHROPIC_API_KEY");
+  }, 60_000);
+
+  it("fila 29 (PRD-005): con ANTHROPIC_API_KEY exportada por el desarrollador, el helper la limpia", async () => {
+    // El espejo de la fila 42 de PRD-004, para el guarda nuevo. Un guarda que
+    // falla ante la PRESENCIA convierte una variable exportada en el shell en un
+    // fallo de toda la suite, y el entorno de la raíz la necesita — así que
+    // tenerla exportada es lo NORMAL, no lo raro.
+    //
+    // Tres sitios la limpian y ninguno cubre a los otros: `spawnWorker` (aquí),
+    // `applyWorkerEnv` (`src/worker.spec.ts`, que resuelve la configuración en
+    // proceso) y `applyApiEnv` (`test/helpers.ts`, para el servicio HTTP, donde
+    // la variable es obligatoria en vez de prohibida).
+    const exported = "sk-ant-clave-exportada-por-el-desarrollador";
+    process.env.ANTHROPIC_API_KEY = exported;
+
+    try {
+      const output = await runUntilLine(
+        {
+          DATABASE_URL: DEAD_DATABASE_URL,
+          PADDLE_API_KEY: FAKE_API_KEY,
+          PADDLE_ENV: "sandbox",
+        },
+        CONFIG_LINE
+      );
+
+      expect(output).toContain(CONFIG_LINE);
+      expect(output).not.toContain("ANTHROPIC_API_KEY");
+      expect(output).not.toContain(exported);
+    } finally {
+      delete process.env.ANTHROPIC_API_KEY;
+    }
+  }, 60_000);
+
+  it("fila 29 (PRD-005): sin ella el worker arranca, y tampoco pide CURRICULUM_SLUG", async () => {
+    // El contraste: sin esto, un guarda que rechazara siempre pasaría las dos
+    // filas de arriba. Y `CURRICULUM_SLUG` no se exige porque el barrido no lee
+    // el currículo — pedírsela sería configuración de adorno que un operador
+    // acabaría rellenando con cualquier cosa.
+    const output = await runUntilLine(
+      {
+        DATABASE_URL: DEAD_DATABASE_URL,
+        PADDLE_API_KEY: FAKE_API_KEY,
+        PADDLE_ENV: "sandbox",
+      },
+      CONFIG_LINE
+    );
+
+    expect(output).toContain(CONFIG_LINE);
+    expect(output).not.toContain("ANTHROPIC_API_KEY");
+    expect(output).not.toContain("CURRICULUM_SLUG");
+  }, 60_000);
 
   // -------------------------------------------------------------------------
   // Fila 39 — el worker no exige los secretos del servicio HTTP

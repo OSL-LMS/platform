@@ -18,6 +18,14 @@ import { AllExceptionsFilter } from "./common/all-exceptions.filter.ts";
  *  y no por decisión. */
 export const BODY_LIMIT = "64kb";
 
+/** Opciones del `ValidationPipe` global, exportadas para que un test del DTO
+ *  ejercite EXACTAMENTE las de producción. Si el spec construyera su propio
+ *  pipe, `forbidNonWhitelisted` podría desaparecer de aquí sin que nada se
+ *  pusiera rojo — y ese flag es la mitad de seguridad del goal 2 de PRD-005: es
+ *  lo que convierte un `messages: [...]` fabricado en un 400 en vez de un campo
+ *  ignorado en silencio. */
+export const VALIDATION_OPTIONS = { whitelist: true, forbidNonWhitelisted: true } as const;
+
 export function configureApp(app: NestExpressApplication): void {
   app.useBodyParser("json", { limit: BODY_LIMIT });
 
@@ -37,12 +45,16 @@ export function configureApp(app: NestExpressApplication): void {
 
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // Defensa en profundidad para DTOs FUTUROS, y se dice en este orden a
-  // propósito: el pipe solo actúa sobre parámetros decorados y tipados contra un
-  // DTO, así que hoy no se ejecuta y no está protegiendo de nada. El control de
-  // identidad es que los handlers de /v1/access* no declaran @Body/@Query/@Param
-  // (§5.1) — no este pipe.
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
+  // DESDE PRD-005 §8.4 ESTE PIPE SÍ SE EJECUTA. `tutor/turn.dto.ts` es el primer
+  // DTO decorado del servicio, así que la premisa que había aquí —"el pipe solo
+  // actúa sobre parámetros decorados y tipados contra un DTO, así que hoy no se
+  // ejecuta"— dejó de ser cierta.
+  //
+  // LO QUE NO CAMBIA es la conclusión: el control de identidad de /v1/access*
+  // sigue siendo que esos handlers no declaran @Body/@Query/@Param (§5.1), no
+  // este pipe. Quien añada un `@Query() dto` a uno de ellos para "aprovechar" la
+  // validación estaría haciendo exactamente lo contrario de lo que se quiere.
+  app.useGlobalPipes(new ValidationPipe(VALIDATION_OPTIONS));
 
   // CORS NO se habilita (§8 punto 3). NestJS ya viene así por defecto, pero se
   // declara aquí para que sea una invariante revisable y no una omisión: esta

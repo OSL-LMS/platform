@@ -50,6 +50,33 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
 
+    // PRIMERA RAMA, Y TIENE QUE SERLO (PRD-005 §5.4). Con un endpoint de
+    // streaming la respuesta puede haber empezado a viajar antes de que aparezca
+    // el error: ahí no hay estado que poner ni cuerpo que enviar, porque el
+    // cliente ya recibió el 200 y unos cuantos bytes. Sin esto el filtro llamaría
+    // a `response.status().json()` sobre una respuesta ya empezada y Express
+    // lanzaría un SEGUNDO error dentro del manejador del primero
+    // (`ERR_HTTP_HEADERS_SENT`), que ya no atiende nadie.
+    //
+    // Vive en el filtro y no en el servicio del tutor a propósito: cualquier
+    // endpoint de streaming futuro nace cubierto.
+    //
+    // Y es la ÚNICA excepción a la regla de abajo ("las HttpException no se
+    // registran"), por eso va ANTES de esa comprobación: a mitad de un stream son
+    // invisibles de cualquier otra forma, porque el cliente no recibe ningún
+    // cuerpo que las nombre. Se registran bajo las mismas reglas de §8 de
+    // PRD-003 — solo `name` y `cause.code`, nunca `message` ni el objeto.
+    if (response.headersSent) {
+      this.logger.error(
+        `Excepción tras enviar cabeceras: name=${errorName(exception)} code=${causeCode(exception)}`
+      );
+      // `destroy()` y no `end()`: cortar el socket es la única señal de "esto no
+      // está completo" que le queda a un cuerpo sin longitud declarada. Un `end()`
+      // limpio le diría al cliente que la respuesta terminó bien.
+      response.destroy();
+      return;
+    }
+
     // Las HttpException las construimos nosotros con literales sin PII (401 sin
     // cuerpo, "firma inválida", "sin evento"). Se devuelven con su forma y no
     // se registran: son fallos del cliente, esperados, y el SessionGuard ya

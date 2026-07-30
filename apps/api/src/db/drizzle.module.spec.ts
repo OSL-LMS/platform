@@ -23,8 +23,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEAD_DATABASE_URL,
+  TEST_ANTHROPIC_KEY,
   TEST_AUTH_SECRET,
   TEST_COOKIE_NAME,
+  TEST_CURRICULUM_SLUG,
   TEST_PADDLE_SECRET,
 } from "../../test/helpers.ts";
 import { API_CONFIG, type ApiConfig, resolveApiConfig } from "../config.ts";
@@ -40,6 +42,10 @@ function env(): NodeJS.ProcessEnv {
     AUTH_SECRET: TEST_AUTH_SECRET,
     AUTH_COOKIE_NAME: TEST_COOKIE_NAME,
     PADDLE_WEBHOOK_SECRET: TEST_PADDLE_SECRET,
+    // Obligatorias desde PRD-005 §5.1: sin ellas `resolveApiConfig()` lanza y
+    // este fichero fallaría nombrando el problema equivocado.
+    ANTHROPIC_API_KEY: TEST_ANTHROPIC_KEY,
+    CURRICULUM_SLUG: TEST_CURRICULUM_SLUG,
   } as NodeJS.ProcessEnv;
 }
 

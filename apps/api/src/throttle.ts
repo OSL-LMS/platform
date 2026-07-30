@@ -30,6 +30,23 @@ const MINUTE_MS = 60_000;
  *  que el número de aquí signifique "por estudiante" y no "entre todos". */
 export const DEFAULT_THROTTLE: ThrottlerOptions = { ttl: MINUTE_MS, limit: 120 };
 
+/** El turno del tutor tiene la cota MÁS BAJA del servicio, y por una razón que
+ *  no comparte con nadie más (PRD-005 §5.5): a diferencia de `/v1/access*`, cada
+ *  petición aquí cuesta una llamada FACTURADA a Anthropic. El resto de endpoints
+ *  gastan una consulta a Postgres; éste gasta dinero.
+ *
+ *  Diez turnos por minuto es holgado para una persona escribiendo —un mensaje
+ *  cada seis segundos, sostenido durante un minuto— y acota un bucle. Sigue
+ *  siendo por CREDENCIAL, no por IP, por lo mismo que el resto: el único llamante
+ *  es el servidor de Next y todos los estudiantes comparten IP de origen. Ver
+ *  `common/bridge-throttler.guard.ts`. */
+export const TUTOR_TURNS_PER_MINUTE = 10;
+
+export const TUTOR_THROTTLE: ThrottlerOptions = {
+  ttl: MINUTE_MS,
+  limit: TUTOR_TURNS_PER_MINUTE,
+};
+
 /** El webhook necesita su propia cota, más alta.
  *
  *  Paddle entrega en ráfaga —una pasada de dunning o de renovaciones manda

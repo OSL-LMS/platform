@@ -31,6 +31,18 @@ catalog:
   # hace inalcanzables.
   "@paddle/paddle-node-sdk": 3.8.0
   posthog-node: 5.46.0
+  # PRD-005 §Impacted Projects: pineada mientras las dos rutas del tutor
+  # coexisten (pasos C-D de §10). Aquí el riesgo NO es el de `drizzle-orm` —dos
+  # instancias del SDK de Anthropic no se pisan— sino que las dos rutas compongan
+  # el MISMO turno contra dos versiones distintas del cliente mientras se compara
+  # `first_token_ms` antes y después del corte. Además `MessageStream.abort()`,
+  # de lo que depende el goal 8, es una afirmación sobre esta versión.
+  #
+  # AVISO: la raíz todavía declara `^0.104.0` en su `package.json`, así que hoy
+  # esto es medio catálogo — funciona por deduplicación del lockfile, no por el
+  # pin. El paso E retira el SDK de la raíz y con él la asimetría; hasta entonces,
+  # quien mueva la versión tiene que mover los dos sitios.
+  "@anthropic-ai/sdk": 0.104.1
 
 # sharp es dependencia transitiva de Next (optimización de imágenes); no la usamos,
 # pero pnpm 11 bloquea su script de build salvo que se apruebe aquí.
