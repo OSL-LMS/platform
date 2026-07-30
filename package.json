@@ -2,40 +2,32 @@
   "name": "platform",
   "version": "0.1.0",
   "private": true,
-  "description": "App web del tutor IA socr\u00e1tico (v0). Chat sobre Claude Sonnet 4.6 con el system prompt certificado.",
+  "description": "Raíz del workspace: herramientas de dato (drizzle-kit, cargador de currículo), las comprobaciones que no dependen de una app, y los dos scripts que Railway ejecuta para el servicio Next. La app vive en apps/web, el servicio NestJS en apps/api y los módulos compartidos en packages/shared (ADR-001 §2, PRD-006).",
+  "//type": "ESTE MANIFIESTO NO DECLARA \"type\": \"module\", y no es un olvido (PRD-006 §7.2). tsc elige el formato de módulo por el package.json más cercano al FUENTE, y para packages/shared/src/** ese es este. Con \"type\": \"module\" el esquema saldría ESM dentro de un dist/apps/api que es CommonJS, y apps/api arrancaría con `SyntaxError: … does not provide an export named 'subscriptions'`. Por lo mismo los tres scripts .mjs de scripts/ CONSERVAN su extensión en vez de apoyarse en un `type` de aquí.",
   "packageManager": "pnpm@11.4.0",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start -p ${PORT:-3000}",
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "curriculum:load": "node scripts/load-curriculum.ts",
-    "curriculum:check": "node scripts/check-curriculum-golden.ts && node scripts/check-curriculum.ts && node scripts/check-lessons.ts && node scripts/check-schedule.ts && node scripts/check-curriculum-identity.ts && node scripts/check-curriculum-load.ts",
-    "test": "pnpm --filter api test",
-    "check:access": "node scripts/check-access-bridge.ts",
-    "check:turn": "node scripts/check-tutor-turn.ts",
-    "check:secrets": "node scripts/check-secrets.ts"
+    "curriculum:check": "node scripts/check-curriculum-golden.ts && node scripts/check-curriculum.ts && node scripts/check-lessons.ts && node scripts/check-curriculum-identity.ts",
+    "curriculum:check:db": "node scripts/check-curriculum-load.ts",
+    "test": "pnpm --filter api test"
   },
+  "//scripts": "`build` y `start` DELEGAN a propósito (PRD-006 §7.3): Railway ejecuta el script `start` de la raíz para servicios enlazados a repositorio, y eso es lo que hace que esta mudanza no toque ninguna variable ni ningún Dockerfile. `curriculum:check` se partió en dos (PRD-006 §7.4): las cuatro comprobaciones de aquí no tocan Postgres y por eso CI puede correrlas; check-curriculum-load.ts escribe y borra filas, exige CURRICULUM_TEST_DATABASE_URL y vive en `curriculum:check:db`. Las seis comprobaciones que importan apps/web/src viajaron a apps/web y tienen sus entradas allí.",
   "dependencies": {
-    "@auth/drizzle-adapter": "^1.11.2",
-    "@paddle/paddle-js": "^1.6.4",
     "drizzle-orm": "catalog:",
-    "next": "^15.5.0",
     "next-auth": "5.0.0-beta.31",
     "pg": "catalog:",
-    "posthog-js": "^1.407.2",
-    "posthog-node": "catalog:",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
     "resend": "^6.12.4"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/pg": "^8.20.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
     "drizzle-kit": "^0.31.10",
     "typescript": "^5.6.0"
-  }
+  },
+  "//deps": "packages/shared NO es un paquete de pnpm, así que sus módulos resuelven caminando hacia arriba desde su propia ubicación hasta <repo>/node_modules — es decir, contra ESTE manifiesto y no contra el del paquete que los importó (PRD-006 §Design Decisions). Por eso drizzle-orm y pg se quedan aquí además de estar en apps/web, y con especificador `catalog:` en los dos sitios: es lo único que impide dos instancias de drizzle-orm. next-auth está aquí por lo mismo y NO es redundante con el de apps/web: packages/shared/src/schema.ts:25 hace `import type { AdapterAccountType } from \"next-auth/adapters\"`, y aunque sea un import de tipo, `next build` y `tsc` tienen que resolverlo desde packages/shared — que mira aquí, no en apps/web. Sin esta línea fallan los builds de los DOS servicios; se descubrió ejecutando el paso 5, no leyendo."
 }

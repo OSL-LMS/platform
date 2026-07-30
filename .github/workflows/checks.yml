@@ -1,0 +1,112 @@
+name: checks
+
+# Único disparador: `pull_request` (PRD-006 §8.5 invariante 1). El repositorio
+# es público y CONTRIBUTING.md manda hacer fork, así que este workflow corre
+# contenido de terceros — `pull_request_target` o `workflow_run` compartirían
+# secretos y token de escritura con ese código y exigen la misma revisión que
+# ya se declinó aquí. Si una comprobación futura necesita credencial, va a un
+# workflow aparte que corra el operador: no se cambia el disparador de este.
+on:
+  pull_request:
+
+# Declarado explícito a nivel de WORKFLOW (PRD-006 §8.5 invariante 2): un
+# bloque `permissions:` a nivel de job lo sobrescribiría en silencio.
+permissions:
+  contents: read
+
+# Las dos únicas variables que el build de apps/web necesita a nivel de
+# módulo (PRD-006 §7.4 punto 2): `resolveClientConfig()` en
+# src/lib/api-client.ts lanza sin ellas y `next build` falla al recolectar
+# rutas. Ninguna de las dos es secreto (§8.5 invariante 3): son los mismos
+# literales que ya usa scripts/check-access-bridge.ts.
+env:
+  AUTH_COOKIE_NAME: authjs.session-token
+  API_BASE_URL: http://127.0.0.1:1
+
+jobs:
+  checks:
+    # Runner hospedado por GitHub (PRD-006 §8.5 invariante 5): uno autohospedado
+    # ejecutando contenido de PR no confiable convertiría el residual de minutos
+    # de Actions en acceso persistente a una máquina con alcance de red.
+    runs-on: ubuntu-latest
+    steps:
+      # `fetch-depth: 0` (no el defecto de 1): con el clon superficial de
+      # `pull_request`, HEAD queda desacoplado y sin refs de rama, y las
+      # sondas de `baseRef()` en check-curriculum-identity.ts caen a "HEAD" —
+      # comparando el archivo consigo mismo y pasando verde sin haber mirado
+      # nada (PRD-006 §7.4 punto 1, fila 8 de §9).
+      - name: Clonar el repositorio (historial completo)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # `packageManager` en package.json fija pnpm@11.4.0; corepack es lo que
+      # lo activa sin depender de una acción de terceros para instalar pnpm.
+      - name: Activar pnpm vía corepack
+        run: corepack enable
+
+      - name: Configurar Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # Acciones de terceros ancladas por SHA de commit, no por etiqueta
+      # (PRD-006 §8.5 invariante 4). Con lockfile congelado: partir el
+      # manifiesto de la raíz en la propia mudanza invalida pnpm-lock.yaml, así
+      # que regenerarlo y commitearlo es requisito duro del commit, no
+      # cortesía (PRD-006 §10 paso 3).
+      - name: Instalar dependencias (lockfile congelado)
+        run: pnpm install --frozen-lockfile
+
+      # Fronteras entre apps/api, apps/web y packages/shared; CODEOWNERS en
+      # las dos direcciones; `Access` sin duplicar; ningún Client Component
+      # importando @shared por valor; agregados de package.json resolviendo.
+      # PRD-006 §9 filas 1, 2, 3, 4, 15.
+      - name: Fronteras entre paquetes, CODEOWNERS y agregados
+        run: node scripts/check-boundaries.ts
+
+      # Las cuatro comprobaciones de currículo que no tocan Postgres (golden,
+      # esquema/invariantes, lecciones, identidad). PRD-006 §9 filas 6, 7, 8.
+      - name: Currículo — esquema, contrato e invariantes (sin base de datos)
+        run: pnpm curriculum:check
+
+      # PRD-006 §9 fila 9.
+      - name: Ventana de contexto
+        run: node scripts/check-window.ts
+
+      # Las seis de apps/web/scripts/, sin diff en sus imports tras la mudanza
+      # (PRD-006 §9 fila 10). Incluye el tripwire de check-secrets.ts que
+      # afirma que assertNoAnthropicKey sigue armado en tutor-turn.ts.
+      - name: apps/web — puente de acceso
+        run: node apps/web/scripts/check-access-bridge.ts
+
+      - name: apps/web — eventos de analítica
+        run: node apps/web/scripts/check-analytics.ts
+
+      - name: apps/web — formato de mensajes
+        run: node apps/web/scripts/check-format-message.ts
+
+      - name: apps/web — planificador
+        run: node apps/web/scripts/check-schedule.ts
+
+      - name: apps/web — turno del tutor
+        run: node apps/web/scripts/check-tutor-turn.ts
+
+      - name: apps/web — guardas de secretos
+        run: node apps/web/scripts/check-secrets.ts
+
+      # Termina en verde con `experimental.externalDir` compilando
+      # packages/shared/src y con la fixture negativa `@ts-expect-error` que
+      # afirma que apps/web no puede emitir el evento de auditoría (PRD-006
+      # §9 fila 14).
+      - name: apps/web — build de Next
+        run: pnpm --filter web build
+
+      # Alcance de archivo, no `pnpm --filter api build` (que es `tsc` y no
+      # ejecuta specs) ni `pnpm --filter api test` a secas (que arrastraría
+      # las seis e2e que exigen API_TEST_DATABASE_URL, marcadas `operador` en
+      # PRD-006 §9 fila 12). La spec hace su propio build en `beforeAll` y se
+      # pone sus variables en línea. PRD-006 §9 fila 11.
+      - name: apps/api — compila, arranca y emite donde toca
+        run: pnpm --filter api test test/build-boot.e2e-spec.ts

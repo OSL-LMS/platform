@@ -10,6 +10,26 @@
 # escalera de contribución pone a otro estudiante como primer filtro.
 curriculum/**            @angelkurten
 
-# El prompt certificado y el bloque que lo acompaña, por lo mismo.
-src/lib/tutor-prompt.ts  @angelkurten
-src/lib/curriculum-context.ts @angelkurten
+# El prompt certificado y el bloque que lo acompaña, por lo mismo. Las rutas se
+# repuntaron en el mismo commit que las movió (PRD-006 §8.1): GitHub NO avisa de
+# reglas huérfanas, así que una mudanza que las dejara apuntando a `src/lib/`
+# desactivaría la puerta en silencio. `scripts/check-boundaries.ts` lo comprueba
+# en las dos direcciones — regla→archivo y ruta protegida→regla.
+packages/shared/src/tutor-prompt.ts  @angelkurten
+packages/shared/src/curriculum-context.ts @angelkurten
+
+# El detector de URLs hostiles: su propio comentario lo llama "la única puerta"
+# para lo que entra al bloque de system desde el currículo, y lleva además el
+# filtro de imperativos y la cota de 4 000. No tenía regla hasta PRD-006 §8.1.
+packages/shared/src/curriculum-file.ts @angelkurten
+
+# Los CONTROLES MISMOS, que no llevan contenido al tutor pero deciden si el resto
+# de este archivo significa algo (PRD-006 §8.5). El workflow porque sus cinco
+# invariantes —disparador `pull_request` y nada más, `permissions: contents:
+# read` a nivel de workflow, cero `secrets.*`, acciones ancladas por SHA, runner
+# hospedado por GitHub— viven en un archivo que cualquiera puede mandar en un PR.
+# `pnpm-workspace.yaml` porque su `allowBuilds:` y su `catalog:` son las dos
+# líneas que sostienen, respectivamente, el residual aceptado de §8.5 y la
+# invariante de una sola instancia de `drizzle-orm`.
+.github/workflows/** @angelkurten
+pnpm-workspace.yaml @angelkurten

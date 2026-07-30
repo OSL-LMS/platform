@@ -1,0 +1,38 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "App web del tutor IA socrático (v0). Chat sobre Claude Sonnet 4.6 con el system prompt certificado; el turno lo sirve apps/api y este proceso lo proxya (PRD-005).",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start -p ${PORT:-3000}",
+    "check:access": "node scripts/check-access-bridge.ts",
+    "check:analytics": "node scripts/check-analytics.ts",
+    "check:format": "node scripts/check-format-message.ts",
+    "check:schedule": "node scripts/check-schedule.ts",
+    "check:secrets": "node scripts/check-secrets.ts",
+    "check:turn": "node scripts/check-tutor-turn.ts"
+  },
+  "//scripts": "Las seis comprobaciones viajaron con src/ desde la raíz (PRD-006 §4): importan apps/web/src, así que sus imports no cambiaron ni un carácter. `check:secrets` era una entrada suelta que ningún agregado invocaba y por tanto no corría nadie; desde PRD-006 §8.2 la ejecuta CI.",
+  "dependencies": {
+    "@auth/drizzle-adapter": "^1.11.2",
+    "@paddle/paddle-js": "^1.6.4",
+    "drizzle-orm": "catalog:",
+    "next": "^15.5.0",
+    "next-auth": "5.0.0-beta.31",
+    "pg": "catalog:",
+    "posthog-js": "^1.407.2",
+    "posthog-node": "catalog:",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.6.0"
+  },
+  "//deps": "drizzle-orm y pg llevan `catalog:` igual que en la raíz y en apps/api: con tres manifiestos declarando la misma dependencia, un caret en cualquiera de ellos reabre el fallo de las dos instancias de drizzle-orm (pnpm-workspace.yaml:20-24). `typescript` se declara aquí en vez de heredarse de la raíz porque `next build` lo resuelve desde el directorio del proyecto, y bajo el layout aislado de pnpm heredarlo sería un enlace implícito."
+}

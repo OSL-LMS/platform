@@ -26,7 +26,7 @@ import { Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from "@ne
 
 import { type AuthenticatedRequest, SessionGuard } from "../session/session.guard.ts";
 import { AccessService } from "./access.service.ts";
-import type { Access } from "./access.types.ts";
+import type { Access } from "../../../../packages/shared/src/access.ts";
 
 @Controller("v1/access")
 @UseGuards(SessionGuard)

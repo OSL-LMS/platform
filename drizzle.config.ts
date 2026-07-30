@@ -6,7 +6,7 @@ import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   dialect: "postgresql",
-  schema: "./src/lib/schema.ts",
+  schema: "./packages/shared/src/schema.ts",
   out: "./drizzle",
   dbCredentials: {
     // La URL la inyecta Railway (o .env.local en desarrollo).

@@ -17,8 +17,8 @@ import {
   lessonsUnder,
   parseCurriculumFile,
   SLUG_PATTERN,
-} from "../src/lib/curriculum-file.ts";
-import { buildLessonContext } from "../src/lib/curriculum-context.ts";
+} from "../packages/shared/src/curriculum-file.ts";
+import { buildLessonContext } from "../packages/shared/src/curriculum-context.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const forest = buildForest(

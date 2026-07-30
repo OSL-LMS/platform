@@ -18,7 +18,7 @@ import { Injectable } from "@nestjs/common";
 
 import { AnalyticsService } from "../analytics/analytics.service.ts";
 import type { Subscription } from "../db/schema.ts";
-import type { Access } from "./access.types.ts";
+import type { Access } from "../../../../packages/shared/src/access.ts";
 import { SubscriptionsRepository } from "./subscriptions.repository.ts";
 
 const TRIAL_DAYS = 7;

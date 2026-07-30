@@ -17,8 +17,8 @@
 // Regla de código: identificadores en inglés, comentarios en español.
 
 import { eq, desc } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { conversations, type ConversationMessage } from "@/lib/schema";
+import { db } from "@shared/db";
+import { conversations, type ConversationMessage } from "@shared/schema";
 
 // Devuelve los mensajes existentes del usuario (para pintar el historial al
 // cargar). Si el usuario no tiene conversación, devuelve un array vacío.

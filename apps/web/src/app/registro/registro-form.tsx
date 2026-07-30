@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { useSearchParams } from "next/navigation";
 import { register, type RegisterResult } from "./actions";
-import type { LessonOption } from "@/lib/curriculum";
+import type { LessonOption } from "@shared/curriculum";
 
 // El formulario de registro, extraído a componente cliente: la página pasó a
 // Server Component para poder leer el currículo de la base de datos (PRD-002

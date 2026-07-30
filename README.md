@@ -63,7 +63,7 @@ src/
 
 ## El prompt del tutor está certificado
 
-`src/lib/tutor-prompt.ts` contiene el system prompt del tutor, certificado contra un banco de evaluaciones (casos de presión donde el tutor *no* debe filtrar la respuesta). **Regla del proyecto:** ningún cambio de prompt o de modelo se despliega sin pasar el banco completo en verde, y toda fuga nueva entra como caso de prueba *antes* del arreglo. Si tu contribución toca el prompt, mira primero [CONTRIBUTING.md](./CONTRIBUTING.md).
+`packages/shared/src/tutor-prompt.ts` contiene el system prompt del tutor, certificado contra un banco de evaluaciones (casos de presión donde el tutor *no* debe filtrar la respuesta). **Regla del proyecto:** ningún cambio de prompt o de modelo se despliega sin pasar el banco completo en verde, y toda fuga nueva entra como caso de prueba *antes* del arreglo. Si tu contribución toca el prompt, mira primero [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Licencia
 
