@@ -14,10 +14,6 @@
 //
 // Regla de código: identificadores en inglés, comentarios en español.
 
-/** Una entrada del hilo tal como viaja al modelo. Copia local del tipo de
- *  `schema.ts` para no importar nada (ver cabecera). */
-export type ThreadMessage = { role: "user" | "assistant"; content: string };
-
 /** El cuerpo que el navegador manda a `POST /api/chat` desde PRD-005 §5.2: un
  *  solo mensaje, el suyo. El hilo sale de `conversations`, no de aquí. */
 export type TurnBody = { message: string; lesson?: string };
@@ -143,119 +139,6 @@ export function decideTurnFailure(failure: TurnFailure): TurnRecovery {
   };
 }
 
-// ---------------------------------------------------------------------------
-// §5.2 — el hilo sale de la base, y la base no tiene restricción de forma.
-// ---------------------------------------------------------------------------
-
-export type SanitizedThread = {
-  messages: ThreadMessage[];
-  /** Cuántas entradas se descartaron. Es un entero y **no lleva contenido**:
-   *  §8.3 mantiene el registro como allowlist por campo. */
-  discarded: number;
-};
-
-function isThreadMessage(entry: unknown): entry is ThreadMessage {
-  if (!entry || typeof entry !== "object") return false;
-  const e = entry as { role?: unknown; content?: unknown };
-  return (
-    (e.role === "user" || e.role === "assistant") && typeof e.content === "string"
-  );
-}
-
-/**
- * Valida el hilo guardado AL LEERLO y deja lo que puede viajar al modelo.
- *
- * `conversations.messages` es `jsonb` sin restricción, y hasta PRD-005 daba
- * igual: la fila no alimentaba al modelo. Desde §5.2 sí, y el goal 2 sólo es
- * tan fuerte como esta lectura — `trimWindow` mira `m.role === "user"` y una
- * entrada con `role: "system"` le pasaría por delante.
- *
- * Dos cosas, en este orden:
- *  1. Se descarta toda entrada cuyo `role` no sea exactamente `"user"` o
- *     `"assistant"`, o cuyo `content` no sea string.
- *  2. Se recorta el prefijo hasta el primer `user`. `trimWindow` NO da esa
- *     garantía por debajo de 30 mensajes (`window.ts:33` devuelve el array tal
- *     cual), así que si el descarte se lleva la primera entrada y la siguiente
- *     es `assistant`, lo que viajaría empieza por `assistant`, Anthropic
- *     responde 400 y el tutor da 500.
- *
- * Un `messages` que no sea un array —violación de esquema, no de contenido— se
- * trata como "nada utilizable" y no como un descarte contable.
- *
- * ponytail: el paso E de §10 la retira de la raíz junto con la implementación
- * local del tutor; desde ahí la lectura validada vive en
- * `apps/api/src/tutor/conversations.repository.ts`.
- */
-export function sanitizeStoredThread(raw: unknown): SanitizedThread {
-  if (!Array.isArray(raw)) return { messages: [], discarded: 0 };
-
-  const kept: ThreadMessage[] = [];
-  for (const entry of raw) {
-    if (isThreadMessage(entry)) kept.push({ role: entry.role, content: entry.content });
-  }
-
-  const firstUser = kept.findIndex((m) => m.role === "user");
-  const messages = firstUser === -1 ? [] : kept.slice(firstUser);
-
-  // `discarded` cuenta LAS DOS PÉRDIDAS —entradas inválidas más el prefijo
-  // recortado—, igual que `sanitizeThread` de
-  // apps/api/src/tutor/conversations.repository.ts. Contar solo las inválidas
-  // aquí daría dos números distintos para el mismo hilo justo durante los pasos
-  // B-E, que es cuando las dos rutas conviven y cuando un operador los
-  // compararía.
-  return { messages, discarded: raw.length - messages.length };
-}
-
-// ---------------------------------------------------------------------------
-// §10 paso B — el cuerpo entrante, en sus dos formas.
-// ---------------------------------------------------------------------------
-
-export type IncomingTurn =
-  | { ok: true; message: string; lesson: string | undefined }
-  | { ok: false; error: string };
-
-/**
- * Lee el turno del cuerpo de `POST /api/chat` aceptando **las dos formas**.
- *
- * Las dos mitades del paso B van juntas en el despliegue, no en el navegador:
- * un estudiante con `/chat` ya abierto conserva el bundle viejo, que manda el
- * hilo entero. Sin esta caída a `messages.at(-1).content` recibiría un 400
- * hasta recargar, y el rollback tendría el problema simétrico.
- *
- * ponytail: el paso E de §10 retira esta función con la rama de compatibilidad.
- * No valida la cota de 4 000: hacerlo aquí rechazaría a un bundle viejo por un
- * límite que ese bundle no conocía. La cota la aplican el `<textarea>` nuevo y
- * el DTO de `apps/api` (§5.1).
- */
-export function readIncomingTurn(body: unknown): IncomingTurn {
-  if (!body || typeof body !== "object") {
-    return { ok: false, error: "Invalid JSON body" };
-  }
-  const b = body as { message?: unknown; messages?: unknown; lesson?: unknown };
-
-  const lesson =
-    typeof b.lesson === "string" && LESSON_SLUG_PATTERN.test(b.lesson)
-      ? b.lesson
-      : undefined;
-
-  if (typeof b.message === "string") {
-    return b.message.length > 0
-      ? { ok: true, message: b.message, lesson }
-      : { ok: false, error: "Missing message" };
-  }
-
-  if (Array.isArray(b.messages)) {
-    const last: unknown = b.messages[b.messages.length - 1];
-    if (last && typeof last === "object") {
-      const content = (last as { content?: unknown }).content;
-      if (typeof content === "string" && content.length > 0) {
-        return { ok: true, message: content, lesson };
-      }
-    }
-  }
-
-  return { ok: false, error: "Missing message" };
-}
 
 // ---------------------------------------------------------------------------
 // §8.3 — falla cerrado ante la PRESENCIA de la clave de Anthropic.
@@ -290,23 +173,19 @@ export function assertNoAnthropicKey(value: string | undefined): void {
   );
 }
 
-// ARMADO DEL GUARDA — LO ENCIENDE EL PASO E DE §10, NO ANTES.
+// GUARDA ARMADO — PASO E DE §10, hecho.
 //
-// La línea que falta es exactamente ésta, sin argumentos ni condiciones:
+// Va en el ámbito del módulo, igual que `resolveClientConfig()` en
+// `api-client.ts:97`, y por la misma razón: `src/app/api/chat/route.ts` importa
+// este fichero, así que la línea se ejecuta en el arranque real de Next y en
+// `next build`. Un guarda en un módulo que nadie importa probaría que una
+// función lanza, no que el arranque falla.
 //
-//     assertNoAnthropicKey(process.env.ANTHROPIC_API_KEY);
+// Hasta el paso E NO podía estar armada, y no era un olvido: durante B, C y D
+// la raíz ejecutaba el tutor en proceso y la clave era legítima aquí.
+// Condicionarla a `TUTOR_VIA_API` habría sido peor que no ponerla — con el flag
+// puesto no dispara, y al quitarlo (que es el rollback del paso D, sin
+// desplegar) tumbaría el proceso justo cuando hace falta que arranque.
 //
-// y va aquí, en el ámbito del módulo, igual que `resolveClientConfig()` en
-// `api-client.ts:97`: este fichero lo importa `src/app/api/chat/route.ts`, así
-// que se carga en el arranque real de Next y en `next build`. Un guarda en un
-// módulo que nadie importa probaría que una función lanza, no que el arranque
-// falla.
-//
-// NO SE PUEDE ARMAR HOY, y no es un olvido: durante los pasos B, C y D la raíz
-// sigue ejecutando el tutor en proceso (`new Anthropic()` en route.ts) y la
-// clave es legítima aquí. Tampoco sirve condicionarlo a `TUTOR_VIA_API`: §8.3
-// dice que durante C-D la clave vive en los dos servicios, precisamente para
-// que el rollback del paso D —quitar la variable, sin desplegar— devuelva un
-// camino local que funciona. El día que el paso E borre la implementación
-// local, esta línea deja de tener excusa. §9 fila 39 la fecha ahí ("tras el
-// paso E") y `scripts/check-secrets.ts` explica qué mitad cubre hoy.
+// Desde aquí, la clave pertenece SÓLO a apps/api. §9 fila 39.
+assertNoAnthropicKey(process.env.ANTHROPIC_API_KEY);

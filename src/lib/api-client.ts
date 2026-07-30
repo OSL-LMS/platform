@@ -255,30 +255,8 @@ export function fetchAccess(
   return requestAccess(token, baseUrl, timeoutMs, "/v1/access", "GET");
 }
 
-// POST /v1/access/trial — crea el trial si no existe (call site:
-// src/app/api/chat/route.ts).
-export function fetchAccessTrial(
-  token: string | { error: true },
-  baseUrl: string,
-  timeoutMs: number
-): Promise<ApiResult> {
-  return requestAccess(token, baseUrl, timeoutMs, "/v1/access/trial", "POST");
-}
 
-export type TutorTurnDecision =
-  | { ok: true; access: Access }
-  | { ok: false; status: 503 | 403 };
 
-// Decisión de status para POST /api/chat (§5.3, §9 fila 41). Vive junto a
-// fetchAccess para que sea pura y testable sin next/headers: un
-// `{error:true}` da 503 ANTES de que el call site llegue a emitir
-// `tutor_message_sent` — el evento con el que §10 paso 3 lee el embudo, que
-// un turno denegado corrompería.
-export function decideTutorTurn(result: ApiResult): TutorTurnDecision {
-  if ("error" in result) return { ok: false, status: 503 };
-  if (!result.allowed) return { ok: false, status: 403 };
-  return { ok: true, access: result };
-}
 
 // ---------------------------------------------------------------------------
 // PRD-005 §5.3 — el proxy del turno del tutor.

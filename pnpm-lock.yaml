@@ -26,9 +26,6 @@ importers:
 
   .:
     dependencies:
-      '@anthropic-ai/sdk':
-        specifier: 'catalog:'
-        version: 0.104.1
       '@auth/drizzle-adapter':
         specifier: ^1.11.2
         version: 1.11.2

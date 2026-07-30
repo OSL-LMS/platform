@@ -25,9 +25,7 @@ process.env.AUTH_COOKIE_NAME ??= "authjs.session-token";
 process.env.API_BASE_URL ??= "http://127.0.0.1:1";
 
 const {
-  decideTutorTurn,
   fetchAccess,
-  fetchAccessTrial,
   resolveClientConfig,
   resolveSessionCookie,
 } = await import("../src/lib/api-client.ts");
@@ -209,19 +207,6 @@ function countingConsoleError<T>(fn: () => T): { result: T; logged: number } {
   assert.equal(shouldEmitPageview("una-sal-de-verdad"), true);
 }
 
-// ---------------------------------------------------------------------------
-// Fila 41 — con {error:true}, el turno del tutor da 503 y no emite
-// (decideTutorTurn(), extraída junto a fetchAccess).
-// ---------------------------------------------------------------------------
-{
-  assert.deepEqual(decideTutorTurn({ error: true }), { ok: false, status: 503 });
-  assert.deepEqual(
-    decideTutorTurn({ allowed: false, status: "canceled", trialDaysLeft: 0 }),
-    { ok: false, status: 403 }
-  );
-  const okAccess = { allowed: true, status: "trial", trialDaysLeft: 5 } as const;
-  assert.deepEqual(decideTutorTurn(okAccess), { ok: true, access: okAccess });
-}
 
 // ---------------------------------------------------------------------------
 // Fila 34 — el timeout está cableado al fetch. Un servidor que ACEPTA la
@@ -341,19 +326,6 @@ await (async () => {
     }
   );
 
-  // fetchAccessTrial() comparte el mismo mapeo; solo cambia método y ruta.
-  await withServer(
-    (req, res) => {
-      assert.equal(req.headers.cookie, undefined, "no debía reenviar la cabecera Cookie");
-      assert.equal(req.method, "POST");
-      assert.equal(req.url, "/v1/access/trial");
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify(validAccess));
-    },
-    async (baseUrl) => {
-      assert.deepEqual(await fetchAccessTrial("valid", baseUrl, TEST_TIMEOUT_MS), validAccess);
-    }
-  );
 
   // Un token que no sea string (p. ej. {error:true} de readSessionToken())
   // nunca llega a hacer la petición.
