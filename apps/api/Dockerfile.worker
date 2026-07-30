@@ -1,0 +1,55 @@
+# Imagen del worker de reconciliación (PRD-004 §10 paso 3).
+#
+# IDÉNTICA a apps/api/Dockerfile salvo el CMD. La duplicación es deliberada y el
+# PRD la contempla: la alternativa era un solo Dockerfile más una sobrescritura
+# del comando de arranque por servicio en la configuración de Railway, y eso
+# tiene un modo de fallo que NO se manifiesta como fallo.
+#
+# POR QUÉ ESTO Y NO LA SOBRESCRITURA. El CMD de la otra imagen es `main.js`, el
+# servidor HTTP. Si la sobrescritura no se aplica —y la cabecera del otro
+# Dockerfile documenta que Railway ya ignoró NIXPACKS_START_CMD una vez para
+# servicios enlazados a repositorio—, el servicio de reconciliación no se cae:
+# **arranca una API NestJS sana en 0.0.0.0, con dominio público, sosteniendo
+# PADDLE_API_KEY**. Nada se pone rojo y el operador ve un despliegue correcto.
+# Ése es exactamente el fallo que PRD-004 §8.1 describe, y un Dockerfile propio
+# lo hace estructuralmente imposible: en esta imagen `main.js` no es alcanzable
+# desde el arranque.
+#
+# Se selecciona con RAILWAY_DOCKERFILE_PATH=apps/api/Dockerfile.worker en el
+# servicio `api-reconcile`.
+#
+# COSTE ACEPTADO: un segundo build completo del mismo árbol. No puede heredar la
+# imagen del servicio `api` con un FROM porque Railway construye cada servicio
+# por su cuenta desde el repositorio y no hay imagen publicada de la que partir.
+#
+# NO CONVERTIR ESTO EN UN ENTRYPOINT PARAMETRIZADO. Un `CMD ["node", "${TARGET}"]`
+# ahorraría el fichero y devolvería el problema: qué proceso arranca volvería a
+# depender de una variable de entorno del servicio, que es la clase de cosa que
+# se copia mal entre servicios sin que nada avise.
+#
+# Regla de código: identificadores en inglés, comentarios en español.
+
+FROM node:24-slim
+
+WORKDIR /app
+
+RUN corepack enable
+
+# El lockfile y los manifiestos primero: mientras no cambien, Docker reutiliza
+# la capa de instalación entre despliegues.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json ./apps/api/
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
+# Mismo build que la otra imagen: emite los DOS entrypoints, y esta imagen solo
+# usa uno. El rootDir inferido es la raíz del repositorio por el import cruzado a
+# src/lib/schema.ts, así que la ruta es dist/apps/api/src/worker.js y NO
+# dist/worker.js — misma trampa que vigila la fila 40 de PRD-004 §9.
+RUN pnpm --filter api build
+
+# Una pasada y termina. El proceso NO es un demonio: Railway lo lanza por cron,
+# hace el barrido y sale (0 si completó, 1 si falló). Un servicio sin cron
+# programado lo reiniciaría en bucle, así que la programación no es opcional.
+CMD ["node", "apps/api/dist/apps/api/src/worker.js"]

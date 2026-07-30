@@ -420,6 +420,8 @@ Next.js 15 (App Router) + React 19 + TypeScript, `pnpm@11.4.0`, desplegado en Ra
 
 `CURRICULUM_SLUG` debe estar configurada en el servicio **antes** de desplegar: es obligatoria y sin defecto.
 
+**El worker de reconciliación tiene su propio Dockerfile, no una sobrescritura del comando de arranque.** `apps/api/Dockerfile.worker` es idéntico a `apps/api/Dockerfile` salvo el `CMD`, y la duplicación —un segundo build completo del mismo árbol— se paga a propósito. El motivo es el modo de fallo de la alternativa: el `CMD` de la otra imagen es el servidor HTTP, así que una sobrescritura por servicio que Railway no aplicara **no tumbaría** el servicio de cron, lo dejaría sirviendo una API pública sana con `PADDLE_API_KEY` en el entorno, sin que nada se ponga rojo. Con un Dockerfile propio, `main.js` no es alcanzable desde el arranque de ese servicio. Se selecciona con `RAILWAY_DOCKERFILE_PATH=apps/api/Dockerfile.worker`. **La programación del cron no es opcional**: el proceso hace una pasada y sale, así que un servicio sin cron lo reiniciaría en bucle.
+
 **El repositorio es un workspace pnpm desde PRD-003** (`packages: ["apps/*"]`), con `apps/api` como único paquete y el servicio Next todavía en la raíz. Cuatro consecuencias que no son obvias:
 
 - **`tsconfig.json` de la raíz excluye `apps`.** Su `include` es `**/*.ts` y se tragaba `apps/api/src`, así que `next build` empezaba a typecheckear NestJS y fallaba con `TS1206`/`TS1241` sobre los decoradores, que ese tsconfig no habilita. Declarar `packages:` no solo engorda el build del servicio Next: sin el `exclude`, lo rompe.
