@@ -169,6 +169,11 @@ export default function ChatClient({
     shapeError: evidenceShapeError,
   });
 
+  // Lo que anuncia la región viva permanente del final. Se calcula aquí porque
+  // esa región vive FUERA del `evidence.visible &&`, donde `evidence` ya no
+  // tiene `status` en el tipo.
+  const evidenceAnnouncement = evidence.visible ? evidence.status : null;
+
   // El campo crece con el texto hasta un tope, y vuelve a encogerse al enviar.
   useEffect(() => {
     const el = inputRef.current;
@@ -340,11 +345,15 @@ export default function ChatClient({
             </p>
           )}
 
+          {/* SIN `role` y sin `aria-live`: este párrafo es el tratamiento
+              VISIBLE. El anuncio lo hace la región montada permanentemente al
+              final del componente — un nodo que nace con su texto dentro no se
+              anuncia de forma fiable, y ésta aparece con la primera lectura ya
+              resuelta. Ponerlo en los dos sitios lo anunciaría dos veces. */}
           <p
             className={`evidence__status evidence__status--${
               evidence.status?.tone ?? "neutral"
             }`}
-            role={evidence.status?.role ?? "status"}
           >
             {evidence.status && evidence.status.tone === "affirmative" && (
               <span className="evidence__mark" aria-hidden="true">
@@ -411,6 +420,18 @@ export default function ChatClient({
           avisar de que el tutor está respondiendo; el texto queda luego en el DOM. */}
       <p className="sr-only" role="status">
         {busy ? "El tutor está escribiendo una respuesta." : ""}
+      </p>
+
+      {/* La región viva del panel de entrega, MONTADA SIEMPRE — también cuando
+          el panel no se ve. Una región viva tiene que existir en el árbol de
+          accesibilidad ANTES de que su contenido cambie: un nodo insertado con
+          el texto ya dentro no se anuncia de forma fiable, y ése es justo el
+          caso del estudiante que vuelve y cuya lección ya tenía evidencia. El
+          `role` sigue saliendo de evidence-panel.ts y no se escribe aquí a
+          mano: es lo que hace imposible emitir `alert` sin contradecir al
+          módulo (§4.3). Mismo patrón que el aviso del tutor de arriba. */}
+      <p className="sr-only" role={evidenceAnnouncement?.role ?? "status"}>
+        {evidenceAnnouncement?.text ?? ""}
       </p>
 
       {/* role="alert" para que un lector de pantalla anuncie el fallo: sin esto
