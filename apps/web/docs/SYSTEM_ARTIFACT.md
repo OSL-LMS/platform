@@ -194,17 +194,26 @@ Forma canónica del adapter. `account` y `session` tienen `onDelete: cascade` co
 
 ## Dominios que viven en otro paquete
 
-Tres dominios cruzan la frontera. Aquí queda **sólo** la mitad que implementa `apps/web`; la otra está en el documento del paquete que la sirve.
+Cuatro dominios cruzan la frontera. Aquí queda **sólo** la mitad que implementa `apps/web`; la otra está en el documento del paquete que la sirve.
 
-- **`acceso`** → `apps/api/docs/SYSTEM_ARTIFACT.md`. Aquí sólo queda el puente (`src/lib/api-client.ts`) y el lado navegador del checkout (`paywall.tsx`, `/checkout`). Ninguna decisión de acceso o cobro se toma en este proceso: se piden a `/v1/access*` y se degrada si no responden. Quien depure por qué alguien tiene o no acceso, mira allí.
+- **`acceso`** → `apps/api/docs/SYSTEM_ARTIFACT.md`. Aquí sólo queda el puente (`src/lib/api-client.ts`) y el lado navegador del checkout (`paywall.tsx`, `/checkout`). **Deuda conocida**: `fetchAccess()` y `fetchAccessTrial()` **no** declaran `redirect: "manual"`, y arrastran el hueco que `streamTutorTurn()` y el puente de evidencia sí cierran — undici retira `authorization` solo en un redirect cross-origin, así que uno same-origin reenviaría el Bearer a una ruta que nadie decidió y un 3xx cross-origin lo descartaría en silencio dando un 401 que se lee como "tu sesión expiró". `apps/api` no tiene un solo redirect en su tabla de rutas, así que hoy no es alcanzable; es limpieza, no incidente. Detectado en la re-revisión post-implementación de PRD-007 y fuera de su alcance. Ninguna decisión de acceso o cobro se toma en este proceso: se piden a `/v1/access*` y se degrada si no responden. Quien depure por qué alguien tiene o no acceso, mira allí.
 - **`tutor`** → `apps/api/docs/SYSTEM_ARTIFACT.md`. Aquí queda el proxy (`src/app/api/chat/route.ts`), que reenvía cookie→Bearer y devuelve el stream sin bufferizar, y la UI del chat. El prompt, la ventana de contexto, la memoria y la clave de Anthropic no están en este proceso — y el guarda de `src/lib/tutor-turn.ts` impide arrancarlo si la clave aparece en su entorno.
 - **`contenido`** → `packages/shared/docs/SYSTEM_ARTIFACT.md`. Aquí queda el renderizado: la home, `/registro` y `/chat` leen el currículo por `@shared/curriculum`. El parser, el control de URLs y las invariantes del archivo publicado viven en `shared`.
+- **`evidencia`** → `apps/api/docs/SYSTEM_ARTIFACT.md`. Aquí queda el proxy (`src/app/api/evidence/route.ts`), el puente (`submitEvidence()`/`fetchEvidence()` en `src/lib/api-client.ts`), **las decisiones puras del panel** (`src/lib/evidence-panel.ts`) y su render en `chat-client.tsx`. La tabla, el verificador de URLs y los ocho controles de SSRF viven en `apps/api`.
+
+  **Tres cosas de esta mitad no son obvias:**
+
+  - **El `role` de la línea de estado sale de `evidence-panel.ts`, no del JSX**, tipado como el literal `"status"` sin otro miembro. Emitir `role="alert"` exigiría contradecir visiblemente el módulo, no olvidarse — y el patrón equivocado está a cincuenta líneas, en la caja de error del tutor. Un fallo de comprobación es un estado de la comprobación, no del estudiante: tratamiento neutro y accionable, nunca rojo de alerta, nunca la palabra "error".
+  - **La región viva se monta siempre**, fuera del condicional que pinta el panel. Una región viva tiene que existir en el árbol de accesibilidad **antes** de que su contenido cambie; naciendo con el texto ya dentro no se anuncia de forma fiable, y el caso afectado es justo el estudiante que vuelve y cuya lección ya tenía evidencia.
+  - **`checkEvidenceUrl()` es un atajo de mensaje, no un control.** El puente aplica la regla positiva, así que un 400 del `ValidationPipe` llega como el mismo `{error:true}` que un 503 — o sea, como "reinténtalo", que para un esquema equivocado es falso porque reintentar falla igual. Comprueba esquema y puerto, y **nada del servidor se relajó** dando por hecho que el cliente comprueba primero.
 
 ---
 
 ## Comprobaciones
 
-Scripts de `assert` bajo Node pelado, en `scripts/`, sin framework. Se invocan por las entradas `check:*` de `package.json`. Seis: `check-access-bridge.ts`, `check-analytics.ts`, `check-format-message.ts`, `check-schedule.ts`, `check-tutor-turn.ts`, `check-secrets.ts`.
+Scripts de `assert` bajo Node pelado, en `scripts/`, sin framework. Se invocan por las entradas `check:*` de `package.json`. Siete: `check-access-bridge.ts`, `check-analytics.ts`, `check-evidence-bridge.ts`, `check-format-message.ts`, `check-schedule.ts`, `check-tutor-turn.ts`, `check-secrets.ts`.
+
+**Una entrada en `package.json` NO ejecuta nada.** `.github/workflows/checks.yml` lista un paso explícito por script y no invoca ningún agregado, así que un script nuevo necesita **las dos** cosas: su entrada `check:*` y su paso en el workflow. Pasó una vez con `check:secrets`, que existió sin correr; PRD-007 lo evitó por poco con `check:evidence` porque un revisor lo cazó.
 
 **Node pelado borra los tipos, no los comprueba.** Una invariante de tipos no cabe aquí: va como fixture con `@ts-expect-error` que typechequea `next build`. `src/lib/analytics.type-test.ts` es la única y **no la importa nadie a propósito** — afirma que este proceso no puede emitir el evento de auditoría del embudo. Si alguien vuelve a ensanchar el tipo de `track()`, el build se pone rojo por la directiva sin usar.
 
@@ -234,4 +243,5 @@ El archivo de secretos local es `apps/web/.env.local` — el proceso corre con e
 
 | Date | PRD | Summary |
 |---|---|---|
+| 2026-07-31 | PRD-007 | Mitad web del dominio `evidencia`: proxy, puente, decisiones puras del panel y su render junto al selector de lección de `/chat`. `/registro` **no** cambió — sigue con `toLessonOptions`, que es lo que impide publicar el texto de evidencia a un visitante anónimo. |
 | 2026-07-31 | — | **El documento vivo se parte en tres**, uno por sibling, al pasar `SIBLINGS.md` de una fila a tres. El anterior vivía en `platform/docs/SYSTEM_ARTIFACT.md` y sigue disponible en el historial de git: los `system_artifact_diff` de PRD-002 a PRD-006 lo citan por ruta **y commit**, así que resuelven ahí y no en disco. Los dominios que cruzaban paquetes quedaron partidos, con la mitad de cada uno referenciando a la otra por nombre. |

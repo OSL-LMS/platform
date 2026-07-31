@@ -107,6 +107,9 @@ Vocabulario del `payload` que la aplicación exige: `stage` → `built`, `aiRole
 | Carga del archivo a la base | `pnpm curriculum:load [--write] [--allow-deletes] [--allow-identity-change <slug>…]` — `scripts/load-curriculum.ts` | PRD-002 |
 | Próxima clase, formato de fecha y temario degradable | `nextSession()`, `formatSessionDate()`, `isPast()`, `seasonAgenda()` — `apps/web/src/lib/schedule.ts` | PRD-002 |
 | Mapa del programa en la home | `toStageViews()` sobre el bosque — `apps/web/src/app/page.tsx` | PRD-002 |
+| Vocabulario de evidencia de una lección | `evidenceKind` (enum `["url"]`) y `evidencePrompt` en `PAYLOAD_VOCABULARY.lesson` — `packages/shared/src/curriculum-file.ts` | PRD-007 |
+| Opciones de lección **con** su evidencia | `toEvidenceLessons()` — `packages/shared/src/curriculum.ts`, consumida solo por `/chat` | PRD-007 |
+| Esquema de `lesson_evidence` y sus tipos de dominio | `packages/shared/src/schema.ts`, `packages/shared/src/evidence.ts` | PRD-007 |
 
 ### Key Invariants
 
@@ -119,7 +122,9 @@ Vocabulario del `payload` que la aplicación exige: `stage` → `built`, `aiRole
 - `CURRICULUM_SLUG` es **obligatoria y sin defecto**, es configuración de servidor y **nunca se deriva del request**. **No hay aislamiento ni control de acceso entre currículos** — el esquema *parece* multi-tenant y no lo es.
 - **El índice de lecciones del bloque del tutor se acota al módulo** de la lección declarada, no al currículo entero.
 - **`body.lesson` es entrada no confiable**: se valida contra `/^[A-Za-z0-9_-]{1,64}$/` **antes** de tocar la base y nunca se interpola en el prompt. Si no coincide, el tutor pregunta.
-- **Al cliente solo viajan `{slug, title}`.** `payload.stuck` no se serializa hacia el navegador, y menos hacia `/registro`, que es pública y sin login.
+- **Al cliente solo viajan `{slug, title}`.** `payload.stuck` no se serializa hacia el navegador, y menos hacia `/registro`, que es pública y sin login. **PRD-007 no relajó esto**: `toLessonOptions` y `LessonOption` quedaron intactos y la evidencia viaja por `toEvidenceLessons()`, una función aparte que solo llama `/chat`. Ensanchar la original habría publicado `evidencePrompt` a un visitante anónimo, porque `registro/page.tsx` la llama también — y habría roto el guarda del golden que hace real esta invariante.
+- **`enum` en `PayloadRule` solo se comprueba cuando el tipo es `string`.** Si no, `{type: "number", enum: ["url"]}` sería representable e inerte: una regla que parece proteger y no protege.
+- **`PAYLOAD_VOCABULARY` está indexado por `kind`**, así que un `evidenceKind` colgado de un `stage` o un `module` **nunca pasa por el control de enum**. Lo cierra el consumidor: `resolveLesson` de `apps/api` casa solo nodos `kind === "lesson"`.
 - `stuck` describe el **atasco** y los límites de lo que se enseña, nunca la solución del reto sembrado. La regla vive en `curriculum/README.md`, donde la lee quien edita.
 - **Ninguna fecha escrita a mano en el JSX**: todo "próxima clase" sale de `schedule.ts`. Terminada la temporada, `nextSession()` devuelve `null` y la home entra sola en estado de pausa.
 - Las clases son a las 20:00 hora de Colombia (UTC-5, sin DST) y duran 2 h; una sesión deja de ser "la próxima" cuando **termina**. El formato de fecha es manual y determinista.
@@ -142,6 +147,8 @@ Vocabulario del `payload` que la aplicación exige: `stage` → `built`, `aiRole
 - `SEASON_SESSIONS` cubre una sola temporada y se edita a mano al terminar; los `vodUrl` se rellenan manualmente tras cada directo (hoy solo L1 lo tiene).
 - `schedule.ts` conserva sus literales `L1`–`L7` hasta CON-7, bajo excepción nombrada en `scripts/check-curriculum.ts`.
 - E1-M2 a M5 y los cinco módulos de E2 están declarados y vacíos: el modelo lo tolera a propósito.
+- **Los `evidencePrompt` no llevan URL de ejemplo, y no es estilo.** Pasan por `checkUrlSafety` como todo valor del payload, y `URL_HOST_ALLOWLIST` no incluye `*.github.io`: un `https://tuusuario.github.io` de muestra muere en el validador. Quien "mejore" un prompt añadiendo uno verá `curriculum:check` en rojo, y **el arreglo no es ensanchar la allowlist** — esa lista protege la landing pública de enlaces salientes bajo la marca de la escuela.
+- **De las siete lecciones de E1, solo tres producen un artefacto propio.** L1 (web publicada), L5 (repositorio) y L7 (pieza de portafolio). L2, L3, L4 y L6 declaran evidencia apuntando a la **misma** dirección que L1, en distintos estados de avance: es coherente con un módulo que construye un artefacto incrementalmente, pero significa que su `verified` es la misma comprobación repetida. Sirve como señal de abandono —quién sigue ahí en la lección 4—, no como evidencia de piezas distintas. Quien lea el agregado por lección tiene que saberlo o contará siete señales donde hay tres.
 
 ---
 
@@ -183,4 +190,5 @@ De ahí que el manifiesto de la raíz declare `drizzle-orm`, `pg` y `next-auth` 
 
 | Date | PRD | Summary |
 |---|---|---|
+| 2026-07-31 | PRD-007 | El currículo pasa a declarar **qué evidencia pide cada lección** (`evidenceKind`, `evidencePrompt`, las dos opcionales), y aquí vive el esquema de `lesson_evidence`. Un curso adoptante cuyas lecciones no las declaren funciona sin tocar `src/`. `toLessonOptions` **no** se ensanchó: la evidencia viaja por una función nueva que solo consume `/chat`. |
 | 2026-07-31 | — | **El documento vivo se parte en tres**, uno por sibling, al pasar `SIBLINGS.md` de una fila a tres. El anterior vivía en `platform/docs/SYSTEM_ARTIFACT.md` y sigue disponible en el historial de git: los `system_artifact_diff` de PRD-002 a PRD-006 lo citan por ruta **y commit**, así que resuelven ahí y no en disco. Los dominios que cruzaban paquetes quedaron partidos, con la mitad de cada uno referenciando a la otra por nombre. |

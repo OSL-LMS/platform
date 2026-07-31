@@ -48,6 +48,8 @@ Léelo antes de editar.
 flowchart LR
     acceso[Acceso y cobro]
     tutor[Tutor]
+    evidencia[Evidencia]
+    curriculo[Seam del currículo]
     reconciliador[Reconciliador]
     auth["Auth<br/>(apps-web)"]
     contenido["Contenido<br/>(shared)"]
@@ -55,7 +57,10 @@ flowchart LR
     acceso -.-> auth
     tutor -.-> auth
     tutor --> acceso
-    tutor -.-> contenido
+    tutor --> curriculo
+    evidencia -.-> auth
+    evidencia --> curriculo
+    curriculo -.-> contenido
     reconciliador --> acceso
 
     class auth,contenido externo
@@ -169,7 +174,7 @@ El chat socrático sobre Claude Sonnet 4.6 (`claude-sonnet-4-6`) con streaming. 
 | Turno del tutor en streaming (`text/plain`, `no-store`) | `POST /v1/tutor/turn` — `apps/api/src/tutor/` | PRD-005 |
 | Proxy del turno: cookie → Bearer, cuerpo y respuesta sin bufferizar | `POST /api/chat` — `apps/web/src/app/api/chat/route.ts` + `streamTutorTurn()` en `apps/web/src/lib/api-client.ts` | PRD-005 |
 | Prompt certificado v0.6 | `TUTOR_SYSTEM_PROMPT` — `packages/shared/src/tutor-prompt.ts`, re-exportado por `apps/api/src/tutor/tutor-prompt.ts` | — |
-| Bloque de contexto de la lección | `buildLessonContext(moduleLessons, ancestors, lessonSlug?)` — `packages/shared/src/curriculum-context.ts`, re-exportado por `apps/api/src/tutor/` | PRD-002 |
+| Bloque de contexto de la lección | `buildLessonContext(moduleLessons, ancestors, lessonSlug?)` — `packages/shared/src/curriculum-context.ts`, re-exportado por `apps/api/src/curriculum/` | PRD-002 |
 | Memoria de la conversación (escritura) | `getOrCreate`, `append` — `apps/api/src/tutor/conversations.repository.ts` | PRD-005 |
 | Memoria de la conversación (lectura para el render) | `loadConversation` — `apps/web/src/lib/conversations.ts` | PRD-005 |
 | Ventana de contexto enviada al modelo | `trimWindow()`, `MAX_WINDOW_MESSAGES = 30` — `packages/shared/src/window.ts`, re-exportado por `apps/api/src/tutor/window.ts` | — |
@@ -203,6 +208,68 @@ El chat socrático sobre Claude Sonnet 4.6 (`claude-sonnet-4-6`) con streaming. 
 - `format-message.ts` implementa un subconjunto de markdown a propósito (código, negrita, énfasis) — sin listas, enlaces ni encabezados.
 
 ---
+
+---
+
+## Domain: `evidencia`
+
+**Source PRDs**: PRD-007
+**Primary owners**: mantenedores del repo
+
+### Overview
+
+Lo que un estudiante entrega por lección, y si esa entrega se pudo comprobar. Es la mitad de servidor: la interfaz vive en `apps/web` y el vocabulario del currículo en `shared`.
+
+Dos cosas lo separan de un "progreso" al uso, y las dos son decisiones de producto, no de implementación. **No se mide consumo** — ni vídeos vistos, ni lecciones marcadas, ni rachas: si la métrica se puede subir sin aprender nada, es la métrica equivocada. Y **declarado y verificado son estados distintos en el esquema**, no en la interpretación, porque un portafolio que acepta autodeclaraciones no es verificable.
+
+### Key Entities
+
+#### `lesson_evidence`
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | pk, `defaultRandom()` |
+| user_id | text | fk → `user.id`, `onDelete: cascade` |
+| lesson_node_id | uuid | el `id` del nodo `lesson` de `curriculum_nodes`. **Sin clave foránea** — ver invariantes |
+| url | text | `CHECK (url LIKE 'https://%')` |
+| status | `evidence_status` | `declared` \| `verified` \| `failed`, default `declared` |
+| failure_reason | text | código de lista cerrada, nunca prosa del destino |
+| checked_at | timestamp | `{ mode: "date" }`, nulo mientras `declared` |
+| created_at / updated_at | timestamp | `{ mode: "date" }`, `defaultNow()` |
+
+`unique(user_id, lesson_node_id)` — es la restricción, y no una comprobación en el servicio, la que hace cierto "reenviar actualiza, no duplica". Índice `(lesson_node_id, status)` para el dato de abandono. **No hay índice por `user_id`**: el de la restricción única lo lidera y ya lo sirve.
+
+### Main Capabilities
+
+| Capability | Surface | Introduced in |
+|---|---|---|
+| Entregar evidencia de una lección | `POST /v1/evidence` — `apps/api/src/evidence/evidence.controller.ts` | PRD-007 |
+| Leer las entregas propias | `GET /v1/evidence` | PRD-007 |
+| Comprobar alcanzabilidad de una URL | `verifyEvidenceUrl()` — `apps/api/src/evidence/evidence-verifier.ts` | PRD-007 |
+| Resolver `slug → nodo` y `id → slug` | `resolveLesson()`, `slugsByNodeId()` — `apps/api/src/curriculum/curriculum.repository.ts` | PRD-007 |
+| Dato de abandono por lección | consulta SQL sobre `(lesson_node_id, status)` — **no hay endpoint** | PRD-007 |
+
+### Key Invariants
+
+- **La identidad de la lección es el UUID del nodo, no el slug.** El `slug` es mutable por contrato (dominio `contenido`), así que guardarlo desconectaría la evidencia el día que alguien renombre una lección.
+- **Sin clave foránea a `curriculum_nodes`, y es deliberado.** Esa tabla es una proyección: `scripts/load-curriculum.ts` hace upsert y solo borra bajo `--allow-deletes`. Con clave, retirar una lección o bien destruiría evidencia ya verificada (cascada) o bien abortaría la transacción del cargador (`NO ACTION`) — y una edición de temario no debe poder hacer ninguna de las dos. Sin clave, el nodo muere, la evidencia **sobrevive**, `GET` la omite mientras no resuelva, y vuelve sola si el nodo regresa con el mismo `id`. Ninguna consulta la borra.
+- **La segunda escritura es un compare-and-set sobre la URL entregada**, nunca sobre el destino final de una cadena de redirecciones. Sin ella, dos entregas solapadas dejan el veredicto de la primera estampado sobre la URL de la segunda. Con el destino final en su lugar, **todo** destino que redirija se quedaría en `declared` para siempre con un 200 — incluido `apex→www` de GitHub Pages, que es el artefacto de L1. Cero filas afectadas = una entrega posterior ganó: se descarta el veredicto y se **relee** la fila.
+- **Un fallo de comprobación es 200 con `status: "failed"`.** Nunca un error HTTP. La entrega quedó registrada y el estudiante puede seguir; el estado es de la comprobación, no del estudiante.
+- **La verificación es la única superficie del sistema donde entrada del estudiante decide a dónde conecta el servidor.** Ocho controles, en `evidence-verifier.ts`: solo `https:` y puerto 443 (en el DTO **y** en cada salto); allowlist de unicast global sobre la dirección resuelta —no denylist, porque una enumeración de rangos malos está incompleta por construcción—; `resolve4()` **y** `resolve6()` con `Promise.allSettled`, cribando la unión entera; literales IP sin resolver, vía `net.isIP()`; presupuesto único de reloj que acota cada operación; redirecciones a mano con revalidación por salto; sin credenciales salientes; y **el cuerpo nunca se lee**.
+- **El host que se criba es el mismo que se resuelve**: `hostnameOf()` está exportado desde el verificador y lo importa el DTO. Las dos capas no pueden divergir, que es el defecto que tuvieron mientras eran dos derivaciones.
+- **`failure_reason` es un código de lista cerrada**, y nada del destino entra en él ni en un log. El `catch` del verificador pasa por `errorName()`/`causeCode()`: un `ENOTFOUND` lleva el hostname en su `message`, y un `TypeError` de undici lleva en `cause.message` la **IP interna resuelta**.
+- **`AnalyticsService` no está cableado en `EvidenceModule`.** La ausencia es estructural y un test la vigila leyendo los ficheros: emitir un evento con la URL la exportaría a un procesador tercero atado al correo del estudiante, fuera de la garantía de `onDelete: cascade`.
+- **`resolveLesson` casa solo nodos con `kind === "lesson"`** y **lanza** ante fallo de consulta, para que el 404 y el 503 se distingan. El `lessonContext` del tutor conserva su contrato opuesto —nunca lanza— y no lo hereda.
+- **El cubo global de salida se acota al handler `submit`, no a la clase.** `EvidenceController` tiene los dos y el `generateKey` por defecto incluye el handler, así que con la clase sola el `GET` recibía su propio cubo de 60/min global donde le tocan 120/min por credencial.
+
+### Open Debt
+
+- **DNS rebinding, aceptado con su alcance escrito.** La pila que criba (c-ares) y la que conecta (`getaddrinfo` de undici) son dos, y difieren en el tiempo y en el comportamiento. Cerrarlo exigiría declarar `undici` como dependencia directa para usar una API que Node no reexporta. Lo que acota el daño: sin credenciales salientes y sin leer el cuerpo, lo que un atacante obtiene es alcanzabilidad **más el código de estado**, sobre el puerto 443, contra servicios que completen TLS — enumeración lenta y atribuible, no un canal de lectura. La mitad alcanzable de la divergencia de comportamiento (nombres de una sola etiqueta y la lista `search`) la cierra la exigencia de FQDN del DTO.
+- **Los dos topes de tasa se multiplican por réplica.** `ThrottlerModule.forRoot` usa almacenamiento en memoria. Con una instancia el número es exacto; con dos, no. El eje global de 60/min es el que importa aquí, porque es el único que sobrevive a la rotación de credenciales — y un buzón firmado N veces son N tokens legítimos y N cubos por credencial.
+- **`POST /v1/evidence` devuelve `EvidenceItem`, que incluye `url`; PRD-007 § 5.1 solo declara `{lessonSlug, status, checkedAt, failureReason}`.** La divergencia es deliberada y el código es el correcto: el camino de descarte del compare-and-set devuelve la fila de **otra** entrega, y sin `url` el cliente que pierde la carrera recibiría un estado sin saber que describe otra dirección. Registrado aquí en vez de corregido en el PRD (ruta 3 del step 9); un PRD posterior que toque § 5.1 debería recogerlo.
+- **No hay reverificación periódica.** Una URL que muera después de verificarse conserva su `verified`. El barrido es aditivo sobre este esquema el día que importe — el segundo entrypoint ya existe.
+- **No se verifica contenido**, solo alcanzabilidad. "Una página con su nombre" y "un repositorio con más de un commit" exigen leer el cuerpo o hablar con la API de GitHub, con su token y su cuota.
+- **El cuerpo de la respuesta no se cancela explícitamente** (marcado `ponytail:`): el socket lo libera el GC de undici. Si aparece presión de sockets, el arreglo es un `cancel()` dentro de un `try`, no leerlo.
 
 ---
 
@@ -248,7 +315,7 @@ Primera ejecución programada, verificada en los logs del servicio:
 
 ## Dominios que viven en otro paquete
 
-- **`contenido`** → `packages/shared/docs/SYSTEM_ARTIFACT.md`. Este servicio lee el currículo con `src/tutor/curriculum.repository.ts`, **sin caché** a diferencia del lado web: aquí no hay `next/cache` y replicar el par caché-más-`lastKnown` quedó fuera de alcance en PRD-006. La consulta es un `SELECT` de unas decenas de filas, una vez por turno con lección declarada, sobre un pool ya abierto.
+- **`contenido`** → `packages/shared/docs/SYSTEM_ARTIFACT.md`. Este servicio lee el currículo con `src/curriculum/curriculum.repository.ts` —módulo propio y exportado desde PRD-007, porque `evidencia` necesita el mismo seam y `TutorModule` no lo exportaba—, **sin caché** a diferencia del lado web: aquí no hay `next/cache` y replicar el par caché-más-`lastKnown` quedó fuera de alcance en PRD-006. La consulta es un `SELECT` de unas decenas de filas, una vez por turno con lección declarada, sobre un pool ya abierto.
 - La mitad de `acceso` y `tutor` que corre en el navegador —el puente, el proxy, la UI del chat, el checkout— está en `apps/web/docs/SYSTEM_ARTIFACT.md`.
 
 ---
@@ -282,6 +349,8 @@ Cada fichero declara en su cabecera qué filas del §9 de su PRD cubre, y cada `
 - **No uses referencias cruzadas de Railway (`${{servicio.VARIABLE}}`) para un secreto compartido.** Parecen limpias y crean una dependencia invisible: al borrar la variable del otro servicio, la referencia queda resolviendo a cadena vacía y este servicio entra en bucle de arranque. Duplicar el valor es más tosco y no se rompe por un borrado ajeno.
 - **El fallo cerrado de `ANTHROPIC_API_KEY` arrastra acceso y cobro con él.** Que el tutor no arranque sin su clave es correcto; la consecuencia que no estaba escrita es que ese mismo arranque sirve `/v1/access` y el webhook de Paddle, así que una clave del tutor ausente deja el muro de pago degradando abierto y los pagos sin registrar. Paddle reintenta durante días, así que se recupera — pero el radio de una variable del tutor es mayor que el tutor.
 
+**Variables del verificador de evidencia** (PRD-007): `EVIDENCE_TIMEOUT_MS` y `EVIDENCE_MAX_REDIRECTS`, las dos obligatorias y **validadas como número finito y positivo** por `requiredNumber()`. Sin esa validación un `EVIDENCE_TIMEOUT_MS=3s` da `NaN`, `AbortSignal.timeout` lo coacciona a `0`, toda comprobación aborta al instante y devuelve `failed`/`timeout` con **HTTP 200**: la función queda rota entera y nada se pone rojo.
+
 **Orden al desplegar cambios de variables**: las que un servicio exige para arrancar se ponen **antes** de mergear el código que las exige; las que un guarda prohíbe se quitan **antes** de mergear el código que las prohíbe. Las dos direcciones fallan cerrado.
 
 ---
@@ -290,4 +359,5 @@ Cada fichero declara en su cabecera qué filas del §9 de su PRD cubre, y cada `
 
 | Date | PRD | Summary |
 |---|---|---|
+| 2026-07-31 | PRD-007 | **Dominio `evidencia`**: `lesson_evidence`, `POST`/`GET /v1/evidence` y el verificador de alcanzabilidad — la primera superficie del sistema donde entrada del estudiante decide a dónde conecta el servidor. El seam del currículo sale de `src/tutor/` a `src/curriculum/` como módulo propio exportado, porque `TutorModule` no lo exportaba y `evidencia` necesita el mismo repositorio; el traslado fue un rename puro y la suite del tutor quedó verde sin tocar una aserción. |
 | 2026-07-31 | — | **El documento vivo se parte en tres**, uno por sibling, al pasar `SIBLINGS.md` de una fila a tres. El anterior vivía en `platform/docs/SYSTEM_ARTIFACT.md` y sigue disponible en el historial de git: los `system_artifact_diff` de PRD-002 a PRD-006 lo citan por ruta **y commit**, así que resuelven ahí y no en disco. Los dominios que cruzaban paquetes quedaron partidos, con la mitad de cada uno referenciando a la otra por nombre. |
