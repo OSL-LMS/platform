@@ -464,6 +464,24 @@ const sources = SCAN_ROOTS.flatMap((root) => {
   text: stripComments(readFileSync(join(ROOT, path), "utf8")),
 }));
 
+// EL MISMO PISO, UN NIVEL MÁS ABAJO. `SCAN_ROOTS` decide qué archivos se leen;
+// `SOURCE_ROOTS` y `LIB_ROOTS` deciden a cuáles se les aplica cada invariante,
+// filtrando por prefijo. Un piso sobre el escaneo no cubre a los selectores: si
+// una entrada de `LIB_ROOTS` apunta a un directorio que ya no existe, la otra
+// mantiene el filtro no vacío y el control examina la mitad de lo que debe sin
+// dejar de dar verde — que es el fallo de §8.1 exactamente, una capa más abajo.
+for (const [nombre, roots] of [
+  ["SOURCE_ROOTS", SOURCE_ROOTS],
+  ["LIB_ROOTS", LIB_ROOTS],
+] as const) {
+  for (const root of roots) {
+    assert.ok(
+      sources.some((s) => s.path.startsWith(root)),
+      `${nombre}: la raíz ${root} no selecciona ningún archivo — el control que la usa estaría pasando en vacío`
+    );
+  }
+}
+
 {
   // (a) Un solo escritor desplegado contra `curriculum_nodes`. La excepción
   //     nombrada es el check de integración: escritor autorizado, y SOLO contra

@@ -19,7 +19,7 @@
   "//scripts": "`build` y `start` DELEGAN a propósito (PRD-006 §7.3): Railway ejecuta el script `start` de la raíz para servicios enlazados a repositorio, y eso es lo que hace que esta mudanza no toque ninguna variable ni ningún Dockerfile. `curriculum:check` se partió en dos (PRD-006 §7.4): las cuatro comprobaciones de aquí no tocan Postgres y por eso CI puede correrlas; check-curriculum-load.ts escribe y borra filas, exige CURRICULUM_TEST_DATABASE_URL y vive en `curriculum:check:db`. Las seis comprobaciones que importan apps/web/src viajaron a apps/web y tienen sus entradas allí.",
   "dependencies": {
     "drizzle-orm": "catalog:",
-    "next-auth": "5.0.0-beta.31",
+    "next-auth": "catalog:",
     "pg": "catalog:",
     "resend": "^6.12.4"
   },

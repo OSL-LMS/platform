@@ -110,9 +110,23 @@ function extractImports(text: string): ImportRef[] {
  * build` con TS2307; no es asunto de esta comprobación).
  */
 function resolveRelativeImport(fromRelFile: string, specifier: string): string | null {
-  if (!specifier.startsWith(".")) return null;
-  const fromDir = dirname(fromRelFile);
-  const joined = join(fromDir, specifier).split("\\").join("/");
+  // LOS ALIAS TAMBIÉN CUENTAN, y son el camino por el que esto se rompería de
+  // verdad. `apps/web/tsconfig.json` mapea `@/*` a `./src/*`, y ese mapeo rige
+  // para TODO el programa —incluidos los módulos de packages/shared, que entran
+  // por `experimental.externalDir`—, así que un `@/lib/x` dentro de un módulo
+  // compartido resuelve y se empaqueta. Un `../../../apps/web/...` de cuatro
+  // niveles se anuncia solo en una revisión; `@/lib/x` se lee como un import
+  // cualquiera de la app. PRD-006 §7.1 predice este accidente por su nombre.
+  let joined: string;
+  if (specifier.startsWith("@/")) {
+    joined = `${WEB_SRC}/${specifier.slice(2)}`;
+  } else if (specifier.startsWith("@shared/")) {
+    joined = `${SHARED_SRC}/${specifier.slice("@shared/".length)}`;
+  } else if (specifier.startsWith(".")) {
+    joined = join(dirname(fromRelFile), specifier).split("\\").join("/");
+  } else {
+    return null;
+  }
   const hasExt = /\.(ts|tsx|js|mjs|cjs)$/.test(joined);
   // El repo importa con extensión `.ts` (§5.3); si alguien importa con `.js`
   // (lo que emitiría `rewriteRelativeImportExtensions`), el origen sigue
@@ -159,18 +173,41 @@ function checkBoundaries(): string[] {
 
 interface CodeownersRule {
   pattern: string;
+  owners: string[];
   line: number;
 }
 
+// LOS OWNERS NO SE DESCARTAN, y esa es la diferencia entre comprobar algo y no
+// comprobar nada. CODEOWNERS es last-match-wins, y una entrada con patrón y SIN
+// owner *retira* la propiedad en vez de darla. Descartando el resto de la línea,
+// una regla "existe" igual lleve dueño o no — así que borrar `@angelkurten` de
+// la línea de curriculum-file.ts, un diff que parece limpieza de espacios, deja
+// el archivo sin dueño en GitHub con esta comprobación en verde. Y una línea
+// suelta con `*` al final del archivo deja el repositorio entero sin dueño por
+// el mismo camino. Con la protección de rama declinada (PRD-006 §3), esa lista
+// de revisores es el control completo.
 function parseCodeowners(text: string): CodeownersRule[] {
   const rules: CodeownersRule[] = [];
   text.split("\n").forEach((raw, i) => {
     const trimmed = raw.trim();
     if (!trimmed || trimmed.startsWith("#")) return;
-    const [pattern] = trimmed.split(/\s+/);
-    rules.push({ pattern, line: i + 1 });
+    const [pattern, ...owners] = trimmed.split(/\s+/);
+    rules.push({ pattern, owners, line: i + 1 });
   });
   return rules;
+}
+
+/**
+ * Quién termina siendo dueño de `file` según la semántica real de GitHub:
+ * gana la ÚLTIMA regla que casa, y si esa no nombra a nadie, el archivo queda
+ * sin dueño. Devuelve la regla ganadora o `null` si ninguna casa.
+ */
+function effectiveRule(rules: CodeownersRule[], file: string): CodeownersRule | null {
+  let winner: CodeownersRule | null = null;
+  for (const rule of rules) {
+    if (matchesCodeownersPattern(rule.pattern, file)) winner = rule;
+  }
+  return winner;
 }
 
 function segmentsOf(p: string): string[] {
@@ -244,9 +281,14 @@ function checkCodeowners(): string[] {
         continue;
       }
       for (const f of matched) {
-        if (!rules.some((r) => matchesCodeownersPattern(r.pattern, f))) {
+        const winner = effectiveRule(rules, f);
+        if (!winner) {
           violations.push(
             `§8.1 — "${f}" (bajo la ruta protegida "${entry}") no está cubierto por ninguna regla de CODEOWNERS`
+          );
+        } else if (winner.owners.length === 0) {
+          violations.push(
+            `${CODEOWNERS_PATH}:${winner.line} — la última regla que casa "${f}" ("${winner.pattern}") no nombra a ningún owner, así que lo deja SIN dueño`
           );
         }
       }
@@ -255,8 +297,13 @@ function checkCodeowners(): string[] {
         violations.push(`§8.1 — la ruta protegida "${entry}" no existe en el árbol`);
         continue;
       }
-      if (!rules.some((r) => matchesCodeownersPattern(r.pattern, entry))) {
+      const winner = effectiveRule(rules, entry);
+      if (!winner) {
         violations.push(`§8.1 — "${entry}" no está cubierto por ninguna regla de CODEOWNERS`);
+      } else if (winner.owners.length === 0) {
+        violations.push(
+          `${CODEOWNERS_PATH}:${winner.line} — la última regla que casa "${entry}" ("${winner.pattern}") no nombra a ningún owner, así que lo deja SIN dueño`
+        );
       }
     }
   }
@@ -340,7 +387,15 @@ const USE_CLIENT_RE = /^\s*["']use client["'];?\s*$/m;
 // `import ... from "./actions";` justo encima. `[^;]` corta en el punto y coma
 // de la sentencia previa y el ancla `^` con `m` impide empezar a mitad de línea;
 // un import multilínea sigue casando porque no lleva `;` dentro.
-const SHARED_IMPORT_RE = /^(?:import|export)\s+([^;]*?)\s+from\s+["']@shared\/[^"']+["']/gm;
+const SHARED_IMPORT_RE =
+  /^[ \t]*(?:import|export)\s+([^;"']*?)\s+from\s+["']@shared\/[^"']+["']/gm;
+
+// Un import de EFECTO o DINÁMICO tampoco lleva el modificador `type` —no puede,
+// no hay cláusula— así que arrastra el módulo por valor igual que el nombrado.
+// La fila 4 dice "sin el modificador `type`" y estas dos formas lo cumplen a la
+// letra sin pasar por `from`, que es lo único que mira la regex de arriba.
+const SHARED_SIDE_EFFECT_RE = /^[ \t]*import\s+["']@shared\/[^"']+["']/gm;
+const SHARED_DYNAMIC_RE = /\bimport\s*\(\s*["']@shared\/[^"']+["']\s*\)/g;
 
 /** `true` si la cláusula trae al menos un binding de VALOR (no solo tipos). */
 function clauseIsValueImport(clause: string): boolean {
@@ -369,6 +424,17 @@ function checkNoClientValueImportsFromShared(): string[] {
         const line = text.slice(0, match.index).split("\n").length;
         violations.push(
           `${file}:${line} — Client Component importa por valor de @shared ("${clause.trim()}")`
+        );
+      }
+    }
+    for (const [re, forma] of [
+      [SHARED_SIDE_EFFECT_RE, "por efecto"],
+      [SHARED_DYNAMIC_RE, "dinámicamente"],
+    ] as const) {
+      for (const match of text.matchAll(re)) {
+        const line = text.slice(0, match.index).split("\n").length;
+        violations.push(
+          `${file}:${line} — Client Component importa @shared ${forma} ("${match[0].trim()}"), que arrastra el módulo por valor igual que un import nombrado`
         );
       }
     }

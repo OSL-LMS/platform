@@ -1,5 +1,9 @@
-# Espacio de trabajo de pnpm. La raíz sigue siendo la app Next; `apps/*` añade
-# los paquetes de la migración a NestJS (ADR-001, PRD-003 fase 1).
+# Espacio de trabajo de pnpm. Desde PRD-006 la raíz NO es la app Next: es la
+# raíz del workspace más las herramientas de dato (drizzle-kit, el cargador de
+# currículo, las comprobaciones que no dependen de una app), y sus scripts
+# `build` y `start` sólo delegan a `apps/web`. La app vive en `apps/web`, el
+# servicio NestJS en `apps/api` y los módulos compartidos en `packages/shared`
+# (ADR-001 §2). El AVISO de abajo sigue vigente palabra por palabra.
 #
 # AVISO (PRD-003 §10 paso 1): declarar `packages:` NO es inerte para el servicio
 # Next. Cambia el grafo de instalación de la raíz —que *es* el servicio Next en
@@ -25,6 +29,12 @@ packages:
 catalog:
   drizzle-orm: 0.45.2
   pg: 8.21.0
+  # Lo consumen `apps/web` (Auth.js) y la RAÍZ, porque
+  # `packages/shared/src/schema.ts` importa el tipo `AdapterAccountType` de
+  # `next-auth/adapters` y packages/shared resuelve contra el node_modules de la
+  # raíz. Declarado en dos manifiestos SIN catálogo seria "una nota, no un pin":
+  # un caret o un bump de un solo lado daria dos resoluciones (PRD-006 §10 paso 3).
+  next-auth: 5.0.0-beta.31
   # Desde el paso 5 de PRD-003 §10 el único consumidor es `apps/api`: la raíz
   # dejó de tener webhook de Paddle. El pin se queda porque es load-bearing —
   # billing.controller.ts y billing.e2e-spec.ts razonan sobre ramas que 3.8.0
