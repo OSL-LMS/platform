@@ -27,6 +27,8 @@ import {
   TEST_AUTH_SECRET,
   TEST_COOKIE_NAME,
   TEST_CURRICULUM_SLUG,
+  TEST_EVIDENCE_MAX_REDIRECTS,
+  TEST_EVIDENCE_TIMEOUT_MS,
   TEST_PADDLE_SECRET,
 } from "../../test/helpers.ts";
 import { API_CONFIG, type ApiConfig, resolveApiConfig } from "../config.ts";
@@ -46,6 +48,9 @@ function env(): NodeJS.ProcessEnv {
     // este fichero fallaría nombrando el problema equivocado.
     ANTHROPIC_API_KEY: TEST_ANTHROPIC_KEY,
     CURRICULUM_SLUG: TEST_CURRICULUM_SLUG,
+    // Y las dos de PRD-007 §5.4, por lo mismo.
+    EVIDENCE_TIMEOUT_MS: TEST_EVIDENCE_TIMEOUT_MS,
+    EVIDENCE_MAX_REDIRECTS: TEST_EVIDENCE_MAX_REDIRECTS,
   } as NodeJS.ProcessEnv;
 }
 

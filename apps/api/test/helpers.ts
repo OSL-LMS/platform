@@ -34,6 +34,14 @@ export const TEST_ANTHROPIC_KEY = "sk-ant-clave-de-pruebas";
  *  un test que apuntara al currículo real dependería de que estuviera cargado. */
 export const TEST_CURRICULUM_SLUG = "curriculo-de-pruebas";
 
+/** El presupuesto y los saltos del verificador de evidencia (PRD-007 §5.4).
+ *  OBLIGATORIAS y sin defecto desde este PRD, así que sin ellas
+ *  `resolveApiConfig()` tumba toda suite que construya el contenedor. Los
+ *  valores son los de producción; las filas que necesitan otro los pasan como
+ *  argumento al verificador, que no lee `process.env` (§7.1). */
+export const TEST_EVIDENCE_TIMEOUT_MS = "3000";
+export const TEST_EVIDENCE_MAX_REDIRECTS = "3";
+
 /** Base inalcanzable, no apagada: puerto 1 rechaza la conexión al instante, que
  *  es justo lo que hace falta para demostrar que un 401 no llega a Postgres. */
 export const DEAD_DATABASE_URL = "postgres://nadie:nadie@127.0.0.1:1/inalcanzable";
@@ -111,6 +119,12 @@ export function applyApiEnv(overrides: Record<string, string | undefined> = {}):
     // test, y `CURRICULUM_SLUG` heredada apuntaría al currículo de verdad.
     ANTHROPIC_API_KEY: TEST_ANTHROPIC_KEY,
     CURRICULUM_SLUG: TEST_CURRICULUM_SLUG,
+    // Las dos de PRD-007 §5.4, por lo mismo: obligatorias y sin defecto, así
+    // que sin ellas `resolveApiConfig()` tumba toda suite que compile el
+    // contenedor. Van con valor explícito para que la fila 54 pueda ponerlas
+    // mal a propósito.
+    EVIDENCE_TIMEOUT_MS: TEST_EVIDENCE_TIMEOUT_MS,
+    EVIDENCE_MAX_REDIRECTS: TEST_EVIDENCE_MAX_REDIRECTS,
     // Sin clave de PostHog el cliente es null y `track()` es un no-op: los
     // tests que cuentan eventos espían el provider, no la red.
     POSTHOG_API_KEY: undefined,

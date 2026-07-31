@@ -58,3 +58,57 @@ export const TUTOR_THROTTLE: ThrottlerOptions = {
  *  cada petición cuesta un HMAC sobre el cuerpo crudo antes de poder
  *  rechazarla. */
 export const WEBHOOK_THROTTLE: ThrottlerOptions = { ttl: MINUTE_MS, limit: 600 };
+
+/** Entrega de evidencia, por credencial (PRD-007 §5.4). Cinco al minuto es
+ *  holgado para una persona entregando —pegar una URL, verla fallar, corregirla
+ *  y reenviar— y corta el bucle.
+ *
+ *  Va en el HANDLER del `POST`, no en la clase: aplicarlo a la clase, que es lo
+ *  que hace el único precedente (`tutor.controller.ts:34-37`), le daría al `GET`
+ *  los 5/min de las escrituras. Fila 47 de §9. */
+export const EVIDENCE_PER_CREDENTIAL_PER_MINUTE = 5;
+
+export const EVIDENCE_THROTTLE: ThrottlerOptions = {
+  ttl: MINUTE_MS,
+  limit: EVIDENCE_PER_CREDENTIAL_PER_MINUTE,
+};
+
+/** El eje GLOBAL de salida, y el único que es un techo de verdad (§5.4).
+ *
+ *  EL DE ARRIBA NO ACOTA NADA A ESCALA. `BridgeThrottlerGuard:41-44` clava el
+ *  cubo en `sha256(authorization)`, y el login es magic-link con sesión JWT: un
+ *  buzón firmado N veces son N tokens válidos y N cubos, sin coste, porque el
+ *  trial es gratis. El eje global es el único que sobrevive a la rotación de
+ *  credenciales, y a diferencia de un cubo por IP no hereda el problema de
+ *  origen compartido que `bridge-throttler.guard.ts` existe para resolver.
+ *
+ *  LOS TRES CAMPOS SON LOAD-BEARING Y CADA OMISIÓN FALLA EN SILENCIO:
+ *
+ *   - **Sin `getTracker` propio** la precedencia del guard es
+ *     `routeOrClass || namedThrottler.getTracker || commonOptions.getTracker`, y
+ *     el `override` de `BridgeThrottlerGuard` entra por `commonOptions`, o sea
+ *     el último: el cubo "global" acabaría clavado en el hash de credencial otra
+ *     vez, detrás del de 5/min, y no podría dispararse nunca.
+ *   - **Sin `skipIf`** el guard evalúa TODOS los throttlers registrados en CADA
+ *     petición, así que 60/min alcanzarían al turno del tutor, a `/v1/access` y
+ *     al webhook de Paddle — al que `WEBHOOK_THROTTLE` provisiona a 600/min a
+ *     propósito. Un control de seguridad que tumba el producto. Fila 46 de §9.
+ *   - **Sin el registro en `forRoot`** (`app.module.ts`) una clave nueva en un
+ *     decorador NO SOBRESCRIBE NADA y el endpoint se queda con la cota por
+ *     defecto — la trampa que `tutor.controller.ts:29-33` ya dejó anotada.
+ *
+ *  EL `skipIf` COMPARA POR NOMBRE Y NO POR CLASE, y no es estilo:
+ *  `ctx.getClass() !== EvidenceController` obligaría a este fichero a importar
+ *  el controlador, mientras el controlador importa `EVIDENCE_THROTTLE` de aquí
+ *  — un ciclo. `throttle.ts` hoy no tiene un solo import en tiempo de ejecución,
+ *  y si se evalúa primero, el decorador `@Throttle` del controlador leería una
+ *  vinculación todavía en TDZ: `ReferenceError` al arrancar. */
+export const EVIDENCE_OUTBOUND_PER_MINUTE = 60;
+
+export const EVIDENCE_OUTBOUND_THROTTLE: ThrottlerOptions = {
+  name: "evidence-outbound",
+  ttl: MINUTE_MS,
+  limit: EVIDENCE_OUTBOUND_PER_MINUTE,
+  getTracker: () => "global",
+  skipIf: (context) => context.getClass().name !== "EvidenceController",
+};

@@ -1,7 +1,7 @@
 // La configuración de build de apps/api, vigilada por los dos caminos.
 //
-// Cubre las filas 1, 2 y 3 de PRD-003 §9, las filas 40, 41 y 42 de PRD-004 §9, y
-// la fila 28 de PRD-005 §9.
+// Cubre las filas 1, 2 y 3 de PRD-003 §9, las filas 40, 41 y 42 de PRD-004 §9,
+// la fila 28 de PRD-005 §9 y las filas 53 y 54 de PRD-007 §9.
 //
 // Por qué hay una fila que compila y arranca de verdad: el camino de BUILD es
 // donde §Design Decisions demuestra que el import cruzado a
@@ -37,6 +37,8 @@ import {
   TEST_AUTH_SECRET,
   TEST_COOKIE_NAME,
   TEST_CURRICULUM_SLUG,
+  TEST_EVIDENCE_MAX_REDIRECTS,
+  TEST_EVIDENCE_TIMEOUT_MS,
   TEST_PADDLE_SECRET,
   applyApiEnv,
 } from "./helpers.ts";
@@ -89,6 +91,11 @@ function bootEntrypoint(env: Record<string, string | undefined>) {
       PADDLE_API_KEY: undefined,
       ANTHROPIC_API_KEY: TEST_ANTHROPIC_KEY,
       CURRICULUM_SLUG: TEST_CURRICULUM_SLUG,
+      // Las dos de PRD-007 §5.4, con la misma lógica de posición: antes del
+      // spread para que las filas 53 y 54 puedan quitarlas o estropearlas a
+      // propósito, y con valor fijo para no heredar nada del shell.
+      EVIDENCE_TIMEOUT_MS: TEST_EVIDENCE_TIMEOUT_MS,
+      EVIDENCE_MAX_REDIRECTS: TEST_EVIDENCE_MAX_REDIRECTS,
       ...env,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -243,6 +250,64 @@ describe("build y arranque", () => {
       expect(`${result.stdout}${result.stderr}`).toContain(empty);
     }
   }, 120_000);
+
+  // -------------------------------------------------------------------------
+  // Filas 53 y 54 de PRD-007 — el verificador tampoco arranca sin su presupuesto
+  // -------------------------------------------------------------------------
+  it("fila 53 (PRD-007): sin EVIDENCE_TIMEOUT_MS o sin EVIDENCE_MAX_REDIRECTS el proceso no levanta y nombra la variable", async () => {
+    // El paso D de §10 las pone en Railway ANTES de mergear el código por esto
+    // exactamente: `resolveApiConfig()` lanza al arrancar, y este proceso sirve
+    // además acceso, cobro y el turno del tutor — mergear el código antes que
+    // las variables tumba los tres, no solo la evidencia.
+    for (const missing of ["EVIDENCE_TIMEOUT_MS", "EVIDENCE_MAX_REDIRECTS"]) {
+      const env: Record<string, string | undefined> = {
+        PORT: String(await freePort()),
+        DATABASE_URL: DEAD_DATABASE_URL,
+        AUTH_SECRET: TEST_AUTH_SECRET,
+        AUTH_COOKIE_NAME: TEST_COOKIE_NAME,
+        PADDLE_WEBHOOK_SECRET: TEST_PADDLE_SECRET,
+      };
+      env[missing] = undefined;
+
+      const result = await waitForExit(bootEntrypoint(env));
+      expect(result.code, `${missing} ausente debería tumbar el arranque`).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toContain(missing);
+    }
+  }, 120_000);
+
+  it("fila 54 (PRD-007): un valor no numérico también tumba el arranque, y no deja un servicio que devuelve failed/timeout con 200", async () => {
+    // ES LA FILA QUE JUSTIFICA `requiredNumber()`. Sin el helper,
+    // `EVIDENCE_TIMEOUT_MS=3s` da `NaN`, `AbortSignal.timeout` lo coacciona a
+    // `0`, TODA comprobación aborta al instante y devuelve `failed`/`timeout`
+    // con HTTP 200 por el goal 4: la función queda rota entera y nada se pone
+    // rojo. `required()` a secas no lo ve — `"3s"` es una cadena no vacía.
+    for (const [key, bad] of [
+      ["EVIDENCE_TIMEOUT_MS", "3s"],
+      ["EVIDENCE_TIMEOUT_MS", "0"],
+      ["EVIDENCE_MAX_REDIRECTS", "muchas"],
+      ["EVIDENCE_MAX_REDIRECTS", "-1"],
+    ]) {
+      const result = await waitForExit(
+        bootEntrypoint({
+          PORT: String(await freePort()),
+          DATABASE_URL: DEAD_DATABASE_URL,
+          AUTH_SECRET: TEST_AUTH_SECRET,
+          AUTH_COOKIE_NAME: TEST_COOKIE_NAME,
+          PADDLE_WEBHOOK_SECRET: TEST_PADDLE_SECRET,
+          [key]: bad,
+        })
+      );
+      const output = `${result.stdout}${result.stderr}`;
+
+      expect(result.code, `${key}=${bad} debería tumbar el arranque`).not.toBe(0);
+      expect(output).toContain(key);
+      // Y el mensaje distingue "el valor no sirve" de "la variable falta", que
+      // es lo que separa esta fila de la 53: `required()` a secas no ve un
+      // `"3s"` —es una cadena no vacía— y lo dejaría pasar a `Number()`.
+      expect(output).toContain("número finito y positivo");
+      expect(output).not.toContain("falta la variable");
+    }
+  }, 180_000);
 
   // -------------------------------------------------------------------------
   // Fila 40 de PRD-004 — el entrypoint del worker existe donde se dice

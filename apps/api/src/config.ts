@@ -28,6 +28,8 @@ export type ApiConfig = {
   poolMax: number;
   anthropicApiKey: string;
   curriculumSlug: string;
+  evidenceTimeoutMs: number;
+  evidenceMaxRedirects: number;
 };
 
 /** Token de inyección de la configuración. */
@@ -50,6 +52,29 @@ function required(env: NodeJS.ProcessEnv, key: string, where = "PRD-003 §5.1 y 
   if (!value) {
     throw new ConfigError(
       `apps/api no puede arrancar: falta la variable de entorno ${key}. Ver ${where}.`
+    );
+  }
+  return value;
+}
+
+/** Como `required()`, más el control de que lo que hay es un número finito y
+ *  positivo (PRD-007 §5.4).
+ *
+ *  POR QUÉ NO BASTA `Number(env.X)`. Hoy el único campo numérico es
+ *  `port: Number(env.PORT ?? 3001)`, sin validar, y ahí un `NaN` se nota: el
+ *  servidor no escucha. El presupuesto del verificador falla al revés y en
+ *  silencio: `EVIDENCE_TIMEOUT_MS=3s` da `NaN`, `AbortSignal.timeout` lo
+ *  coacciona a `0`, TODA comprobación aborta al instante, y el goal 4 —un fallo
+ *  de comprobación es un 200 con `status: "failed"`— convierte la función rota
+ *  entera en una respuesta correcta. Nada se pone rojo. Fila 54 de §9.
+ *
+ *  NOMBRA LA VARIABLE Y NUNCA IMPRIME SU VALOR, como `required()`. */
+function requiredNumber(env: NodeJS.ProcessEnv, key: string, where: string): number {
+  const value = Number(required(env, key, where));
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new ConfigError(
+      `apps/api no puede arrancar: la variable de entorno ${key} tiene que ser un ` +
+        `número finito y positivo. Ver ${where}.`
     );
   }
   return value;
@@ -126,5 +151,24 @@ export function resolveApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfi
     //    deriva del request: es configuración de servidor.
     anthropicApiKey: required(env, "ANTHROPIC_API_KEY", "PRD-005 §5.1 y §10 paso C"),
     curriculumSlug: required(env, "CURRICULUM_SLUG", "PRD-005 §5.1 y §10 paso C"),
+
+    // OBLIGATORIAS, SIN DEFECTO Y VALIDADAS COMO NÚMERO (PRD-007 §5.4). El paso
+    // D de §10 las pone en Railway ANTES de mergear el código, por lo mismo que
+    // las dos de arriba: este proceso sirve además acceso, cobro y el turno del
+    // tutor, así que una variable ausente no degrada la evidencia — tumba los
+    // tres.
+    //
+    //  - `EVIDENCE_TIMEOUT_MS` es el PRESUPUESTO TOTAL de una comprobación: DNS
+    //    y saltos incluidos, medido contra un instante fijado una vez antes del
+    //    bucle (§8.2 control 4). No es un tope por operación.
+    //  - `EVIDENCE_MAX_REDIRECTS` son los saltos que el verificador sigue a
+    //    mano. `http→https`, `apex→www` y un dominio propio encadenan hasta tres
+    //    en GitHub Pages, que es el artefacto de L1.
+    evidenceTimeoutMs: requiredNumber(env, "EVIDENCE_TIMEOUT_MS", "PRD-007 §5.4 y §10 paso D"),
+    evidenceMaxRedirects: requiredNumber(
+      env,
+      "EVIDENCE_MAX_REDIRECTS",
+      "PRD-007 §5.4 y §10 paso D"
+    ),
   };
 }
