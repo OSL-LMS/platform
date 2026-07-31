@@ -1,20 +1,70 @@
-# SYSTEM_ARTIFACT — apps/web
+# SYSTEM_ARTIFACT
 
-**Documento vivo.** Describe lo que el paquete hace **ahora**. No es historia: para saber por qué está construido así, lee el PRD que lo introdujo, en `../../../specforge/`.
+**Project**: apps-web (`OSL-LMS/platform`, paquete `apps/web`)
+**Last updated**: 2026-07-31
+**Version**: 0.1.0
+**Maintainers**: mantenedores del repo OSL
 
-**Alcance.** Este archivo cubre `apps/web` y nada más. Los dominios que cruzan paquetes están **partidos** desde 2026-07-31, cuando el registro de siblings pasó de una fila a tres: cada mitad vive con el código que la implementa y la otra se referencia por nombre. Los tres documentos son:
+<!--
+  Estado actual de ESTE paquete, por dominio. Documento vivo: describe lo que
+  HAY, no lo que vendrá. Los PRD son fotos congeladas; este archivo gana si
+  discrepan.
 
-| Sibling | Documento |
-|---|---|
-| `apps-web` | `apps/web/docs/SYSTEM_ARTIFACT.md` |
-| `apps-api` | `apps/api/docs/SYSTEM_ARTIFACT.md` |
-| `shared` | `packages/shared/docs/SYSTEM_ARTIFACT.md` |
+  Uno por sibling desde 2026-07-31, cuando SIBLINGS.md pasó de una fila a tres.
+  El anterior cubría el repositorio entero y vive en el historial de git; los
+  `system_artifact_diff` de PRD-002 a PRD-006 lo citan por ruta Y commit.
 
-## Cómo se mantiene
+    apps-web  → apps/web/docs/SYSTEM_ARTIFACT.md
+    apps-api  → apps/api/docs/SYSTEM_ARTIFACT.md
+    shared    → packages/shared/docs/SYSTEM_ARTIFACT.md
 
-Se actualiza en el mismo commit que promociona un PRD a `Implemented` (hard rule 8). Si un cambio toca dos paquetes, se actualizan los dos documentos y el `system_artifact_diff` del gate lista los dos.
+  Los dominios que cruzan la frontera están PARTIDOS: cada mitad vive con el
+  código que la implementa y referencia a la otra por nombre, en la sección
+  "Dominios que viven en otro paquete".
+-->
 
-Lo que va aquí: entidades, capacidades, invariantes y deuda abierta. Lo que **no** va: decisiones y sus alternativas —eso es un ADR— ni el detalle de implementación de un cambio concreto —eso es un PRD—.
+---
+
+## How to maintain this document
+
+Léelo antes de editar.
+
+1. **Un cambio por commit.** Cada actualización va atada a un PRD que llega a `Implemented`, o a un arreglo directo de deriva observada.
+2. **En el mismo commit que el código.** Al promocionar un PRD, el diff contra este archivo es uno de los tres campos del gate (`system_artifact_diff`). Si un cambio toca dos paquetes, se actualizan los dos documentos y el gate lista los dos.
+3. **Describe lo que ES, no lo que vendrá.** Aquí no hay secciones de "futuro" ni "propuesto". El trabajo futuro vive en los PRD.
+4. **Agrupa por dominio, no por cronología.** Quien lea esto debe aprender el sistema por fronteras de dominio, no por el orden en que se construyeron las cosas.
+5. **Enlaza al PRD que introdujo cada capacidad** para que el lector encuentre la razón original. No dupliques esa razón aquí.
+6. **Diagramas sólo en Mermaid.** Nada de ASCII. Tablas y listas anidadas no cuentan como diagrama.
+
+---
+
+## Domain Map
+
+<!-- Los dominios de ESTE paquete y de qué dependen. Lo punteado vive en otro
+     sibling: se dibuja para que la dependencia se vea, no para documentarla
+     aquí. -->
+
+```mermaid
+flowchart LR
+    captacion[Captación]
+    auth[Auth]
+    acceso["Acceso y cobro<br/>(apps-api)"]
+    tutor["Tutor<br/>(apps-api)"]
+    contenido["Contenido<br/>(shared)"]
+
+    auth --> captacion
+    captacion --> contenido
+    acceso -.-> auth
+    tutor -.-> auth
+    tutor -.-> acceso
+    tutor -.-> contenido
+
+    class acceso,tutor,contenido externo
+    classDef externo stroke-dasharray: 5 5
+```
+
+
+---
 
 ## Domain: `captacion`
 
