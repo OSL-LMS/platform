@@ -47,15 +47,14 @@ export type EvidenceResolver = {
 export type EvidenceVerifierDeps = {
   /** FÁBRICA CON EL TOPE COMO ARGUMENTO, no instancia.
    *
-   *  DESVIACIÓN DECLARADA respecto a la letra de §8.2 control 4, que escribe
-   *  `resolver.setTimeout(restante)`: **ese método no existe**. Ni
+   *  Es lo que pide §8.2 control 4, y la razón está ahí y aquí: ni
    *  `dns.promises.Resolver` ni `dns.Resolver` tienen `setTimeout`; el tope por
    *  consulta es una opción del CONSTRUCTOR (`new Resolver({ timeout, tries })`,
-   *  `@types/node@22` `dns/promises.d.ts:458-459`). El control se cumple igual
-   *  —cada operación recibe como tope el tiempo restante— pero la única forma de
-   *  aplicarlo es construir el resolutor cuando ya se conoce ese resto, así que
-   *  el tope viaja por la fábrica. `cancel()` sí existe y sigue siendo lo que se
-   *  llama al vencer el presupuesto.
+   *  `@types/node@22` `dns/promises.d.ts:458-459`). Cada operación recibe como
+   *  tope el tiempo restante, y la única forma de aplicarlo es construir el
+   *  resolutor cuando ya se conoce ese resto, así que el tope viaja por la
+   *  fábrica. `cancel()` sí existe y es lo que se llama al vencer el
+   *  presupuesto.
    *
    *  Y una instancia por comprobación de todas formas: `cancel()` aborta las
    *  consultas en vuelo del resolutor ENTERO, así que compartirlo haría que una
@@ -203,8 +202,10 @@ function ipv6Bytes(address: string): Uint8Array | null {
  *
  *  Se excluye `2001::/23` y no `2001::/32` porque el bloque ancho barre de una
  *  vez toda futura asignación de protocolo del IETF (Teredo, ORCHIDv2, BMWG…)
- *  sin coste. `2001:db8::/32` queda FUERA de ese bloque —`0xdb & 0xfe` no es 0—
- *  y por eso lleva su propia línea. */
+ *  sin coste. `2001:db8::/32` queda FUERA de ese bloque y por eso lleva su
+ *  propia línea: el byte que enmascara la prueba de `/23` es `bytes[2]`, que
+ *  para `2001:0db8::` vale `0x0d` —no `0xdb`— y `0x0d & 0xfe = 0x0c`, distinto
+ *  de 0. Quien rederive esto a mano tiene que mirar el TERCER byte. */
 function isGlobalUnicastIpv6(address: string): boolean {
   const bytes = ipv6Bytes(address);
   if (!bytes) return false;

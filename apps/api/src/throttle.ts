@@ -110,5 +110,18 @@ export const EVIDENCE_OUTBOUND_THROTTLE: ThrottlerOptions = {
   ttl: MINUTE_MS,
   limit: EVIDENCE_OUTBOUND_PER_MINUTE,
   getTracker: () => "global",
-  skipIf: (context) => context.getClass().name !== "EvidenceController",
+  // ACOTA AL HANDLER, NO A LA CLASE. `EvidenceController` tiene los dos, y el
+  // `generateKey` por defecto incluye el nombre del handler, así que con la
+  // clase sola el `GET` recibía su PROPIO cubo `evidence-outbound` — 60/min
+  // global, cuando §5.2 le promete 120/min por credencial. `chat-client.tsx` lo
+  // llama al montar, así que pasadas 60 cargas de chat en un minuto el panel
+  // daba 429 a todo el mundo, y §4.3 hace que eso degrade EN SILENCIO a "sin
+  // entrega": el estudiante vería vacío algo que sí entregó.
+  //
+  // El eje global existe para acotar CONEXIONES SALIENTES, y el `GET` no abre
+  // ninguna. Sigue comparando por nombre y no por referencia, por el ciclo de
+  // imports de arriba.
+  skipIf: (context) =>
+    context.getClass().name !== "EvidenceController" ||
+    context.getHandler().name !== "submit",
 };

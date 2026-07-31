@@ -316,10 +316,10 @@ describe("EvidenceService.submit", () => {
   // Fila 38 — la URL no sale hacia ninguna analítica
   // -------------------------------------------------------------------------
   it("fila 38: el módulo de evidencia no puede emitir a analítica", async () => {
-    // DESVIACIÓN DECLARADA respecto a la letra de la fila 38, que dice "el doble
-    // de `AnalyticsService` no se llama": este módulo NO DEPENDE de
-    // `AnalyticsService`, así que no hay doble que inyectar y un espía sobre uno
-    // suelto pasaría por vacuidad. Se afirma la propiedad más fuerte —que no
+    // Es la guarda estructural que pide la fila 38, y la razón por la que pide
+    // ésa y no un espía: este módulo NO DEPENDE de `AnalyticsService`, así que
+    // no hay doble que inyectar y un espía sobre uno suelto pasaría por
+    // vacuidad. Se afirma la propiedad más fuerte —que no
     // puede llamarse— leyendo el código, que es lo que ya hace
     // `scripts/check-boundaries.ts` para una invariante de la misma clase.
     //
@@ -356,7 +356,7 @@ describe("EvidenceService.submit", () => {
 // ---------------------------------------------------------------------------
 
 describe("EvidenceService.list", () => {
-  it("devuelve solo las filas del propio estudiante, con su slug resuelto", async () => {
+  it("§5.2 (sin fila propia en §9): devuelve solo las filas del propio estudiante, con su slug resuelto", async () => {
     const otra = "22222222-2222-4222-8222-222222222222";
     const evidence = evidenceDouble({
       listed: [
@@ -390,7 +390,7 @@ describe("EvidenceService.list", () => {
     expect(evidence.listByUser).toHaveBeenCalledWith(STUDENT.userId);
   });
 
-  it("omite la fila de un nodo retirado del temario, y no la borra", async () => {
+  it("§5.2 (sin fila propia en §9): omite la fila de un nodo retirado del temario, y no la borra", async () => {
     // §6.3: el trabajo del estudiante existió, el temario cambió. La fila
     // sobrevive y vuelve sola si el nodo regresa.
     const retirado = "33333333-3333-4333-8333-333333333333";
@@ -407,7 +407,7 @@ describe("EvidenceService.list", () => {
     expect(evidence).not.toHaveProperty("delete");
   });
 
-  it("si el currículo no se puede leer, el GET también es 503", async () => {
+  it("§5.2 (sin fila propia en §9): si el currículo no se puede leer, el GET también es 503", async () => {
     const evidence = evidenceDouble({ listed: [row()] });
     const { service } = build(
       { slugsThrow: new CurriculumUnavailableError("no se pudo leer el currículo") },

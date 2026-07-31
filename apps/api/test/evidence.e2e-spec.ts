@@ -24,9 +24,12 @@
 //     petición de la suite —no de la fila— fuese un 429, y el fallo aparecería
 //     en la fila equivocada.
 //  2. **Los tres bloques de tasa comparten aplicación y VAN EN ORDEN.** El cubo
-//     `evidence-outbound` es global y de 60/min: la fila 47 gasta seis antes de
-//     que la 45 lo agote, y la 46 comprueba DESPUÉS que agotarlo no ha tocado al
-//     tutor. Ese orden es la mitad de la afirmación, no una casualidad.
+//     `evidence-outbound` es global y de 60/min, y su `skipIf` lo acota al
+//     handler `submit`: el `GET` no entra en él ni gasta de él (por eso la
+//     hermana de la fila 47 puede pasar de 60 lecturas sin ver un 429). Lo que
+//     sí comparte cubo es la fila 45, que lo agota, y la 46 comprueba DESPUÉS
+//     que agotarlo no ha tocado al webhook. Ese orden es la mitad de la
+//     afirmación, no una casualidad.
 //  3. **El usuario se inserta en `user`.** `lesson_evidence.user_id` es FK con
 //     `onDelete: cascade`; sin la fila padre toda escritura falla con violación
 //     de clave ajena.
@@ -481,7 +484,7 @@ describe("evidencia por lección", () => {
   // -------------------------------------------------------------------------
   // Las ramas de error de §4.2 que llegan hasta el cable
   // -------------------------------------------------------------------------
-  it("los códigos de §5.1: 404 para un slug inexistente, 404 para una etapa, 409 para una lección sin evidencia, 400 para un cuerpo malo", async () => {
+  it("§5.1 (sin fila propia en §9): 404 para un slug inexistente, 404 para una etapa, 409 para una lección sin evidencia, 400 para un cuerpo malo", async () => {
     const student = await newStudent();
 
     const inexistente = await post(base, student, { lessonSlug: "no-existe", url: URL_A });
@@ -689,6 +692,26 @@ describe("evidencia: las cotas", () => {
 
     const codes: number[] = [];
     for (let i = 0; i < EVIDENCE_PER_CREDENTIAL_PER_MINUTE + 1; i++) {
+      codes.push((await get(base, student)).status);
+    }
+
+    expect(codes.every((code) => code === 200), `códigos: ${codes}`).toBe(true);
+  });
+
+  it("fila 47 (hermana): el GET tampoco hereda el cubo GLOBAL de salida", async () => {
+    // FALLA SI EL `skipIf` ACOTA POR CLASE Y NO POR HANDLER. `EvidenceController`
+    // tiene los dos, y el `generateKey` por defecto incluye el nombre del
+    // handler, así que con la clase sola el `GET` recibía su propio cubo
+    // `evidence-outbound`: 60/min GLOBAL —entre todos los estudiantes— donde
+    // §5.2 promete 120/min por credencial. El eje global acota conexiones
+    // SALIENTES y el `GET` no abre ninguna.
+    //
+    // Es el caso que la mitad de arriba no puede ver: seis peticiones caben de
+    // sobra en 60. Hay que pasarse del tope global para que se note.
+    const student = await newStudent();
+
+    const codes: number[] = [];
+    for (let i = 0; i < EVIDENCE_OUTBOUND_PER_MINUTE + 5; i++) {
       codes.push((await get(base, student)).status);
     }
 
