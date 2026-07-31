@@ -15,12 +15,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AccessService } from "../access/access.service.ts";
 import type { AnalyticsService } from "../analytics/analytics.service.ts";
+import { buildLessonContext, type CurriculumNode } from "../curriculum/curriculum-context.ts";
+import type { CurriculumRepository, LessonContextInputs } from "../curriculum/curriculum.repository.ts";
 import type { ConversationMessage } from "../db/schema.ts";
 import type { SessionUser } from "../session/session.guard.ts";
 import type { TutorStream, TutorStreamer } from "./anthropic.client.ts";
 import type { ConversationsRepository, LoadedConversation } from "./conversations.repository.ts";
-import { buildLessonContext, type CurriculumNode } from "./curriculum-context.ts";
-import type { CurriculumRepository, LessonContextInputs } from "./curriculum.repository.ts";
 import { TUTOR_SYSTEM_PROMPT } from "./tutor-prompt.ts";
 import { TUTOR_MAX_TOKENS, TUTOR_MODEL, TutorService, type TurnWriter } from "./tutor.service.ts";
 import { MAX_WINDOW_MESSAGES } from "./window.ts";

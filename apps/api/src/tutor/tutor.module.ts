@@ -8,6 +8,11 @@
 // referenciado por clase se resuelve del contenedor, así que tiene que ser
 // visible desde este módulo.
 //
+// `CurriculumModule` desde PRD-007 §7.1: `CurriculumRepository` se declaraba
+// AQUÍ y sin `exports:`, o sea invisible fuera. Ahora vive en su propio módulo
+// y se IMPORTA, no se declara: redeclarar el provider daría dos instancias del
+// mismo repositorio, una por módulo.
+//
 // `DrizzleModule` y `ConfigModule` no aparecen: los dos son `@Global()` y
 // exportan sus tokens (`DRIZZLE`, `API_CONFIG`).
 //
@@ -17,16 +22,16 @@ import { Module } from "@nestjs/common";
 
 import { AccessModule } from "../access/access.module.ts";
 import { AnalyticsModule } from "../analytics/analytics.module.ts";
+import { CurriculumModule } from "../curriculum/curriculum.module.ts";
 import { SessionModule } from "../session/session.module.ts";
 import { anthropicClientProvider } from "./anthropic.client.ts";
 import { ConversationsRepository } from "./conversations.repository.ts";
-import { CurriculumRepository } from "./curriculum.repository.ts";
 import { TutorController } from "./tutor.controller.ts";
 import { TutorService } from "./tutor.service.ts";
 
 @Module({
-  imports: [AccessModule, AnalyticsModule, SessionModule],
+  imports: [AccessModule, AnalyticsModule, CurriculumModule, SessionModule],
   controllers: [TutorController],
-  providers: [TutorService, ConversationsRepository, CurriculumRepository, anthropicClientProvider],
+  providers: [TutorService, ConversationsRepository, anthropicClientProvider],
 })
 export class TutorModule {}
