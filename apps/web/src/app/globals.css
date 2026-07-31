@@ -226,6 +226,86 @@ h1, h2, h3 {
   text-align: center;
 }
 
+/* ====== Panel de entrega de evidencia (PRD-007 §4.3) ======
+   DELIBERADAMENTE distinto de .chat__error: ni --color-error, ni borde de
+   alerta, ni centrado de aviso. Un `failed` aquí es un estado de la
+   comprobación, no del estudiante, y el tratamiento tiene que leerse como
+   información y no como castigo. El único color que entra es la tinta
+   apagada. */
+.evidence {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-rule);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+  font-size: 14px;
+}
+
+.evidence__prompt {
+  margin: 0 0 8px;
+}
+
+.evidence__submitted {
+  margin: 0 0 4px;
+  /* Una URL larga no debe ensanchar el chat ni desbordar en móvil. */
+  overflow-wrap: anywhere;
+}
+
+.evidence__link {
+  color: var(--color-ink);
+}
+
+.evidence__status {
+  margin: 0;
+  min-height: 1.55em; /* Reservado: la línea aparece y desaparece sin saltos. */
+  color: var(--color-ink-muted);
+}
+
+/* La marca afirmativa es tinta, no bermellón: el acento señala una cosa por
+   pieza (regla 2 de la identidad) y esa cosa es la llamada a la acción. */
+.evidence__status--affirmative {
+  color: var(--color-ink);
+}
+
+.evidence__mark {
+  font-weight: 600;
+}
+
+.evidence__form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.evidence__form input {
+  flex: 1;
+  font: inherit;
+  font-size: 14px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.evidence__form button {
+  font: inherit;
+  font-size: 14px;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+  background-color: var(--color-highlight);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.evidence__form button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .chat__trial {
   margin: 0 0 8px;
   padding: 8px 12px;

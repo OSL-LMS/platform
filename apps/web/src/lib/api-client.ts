@@ -24,6 +24,7 @@
 // Regla de código: identificadores en inglés, comentarios en español.
 
 import type { Access } from "@shared/access";
+import type { EvidenceItem } from "@shared/evidence";
 
 export type ApiResult = Access | { error: true };
 
@@ -396,4 +397,143 @@ export async function streamTutorTurn(
     clearTimeout(timer);
     return { error: true };
   }
+}
+
+// ---------------------------------------------------------------------------
+// PRD-007 §5.3 — el puente de la evidencia por lección.
+// ---------------------------------------------------------------------------
+
+/**
+ * §5.4. Por encima del presupuesto total de la comprobación en apps/api
+ * (`EVIDENCE_TIMEOUT_MS` = 3000, que incluye DNS y saltos), con margen para el
+ * salto de red y las dos escrituras.
+ *
+ * Viaja como ARGUMENTO a las dos funciones de abajo y nunca se lee desde
+ * dentro, por la razón que fetchAccess() ya documenta: si lo releyeran por
+ * dentro, las filas 61-63 de §9 no podrían fijar un tope corto y tendrían que
+ * esperar seis segundos reales por caso.
+ */
+export const EVIDENCE_BRIDGE_TIMEOUT_MS = 6_000;
+
+export type EvidenceResult = EvidenceItem | { error: true };
+export type EvidenceListResult = { items: EvidenceItem[] } | { error: true };
+
+function isEvidenceItem(body: unknown): body is EvidenceItem {
+  if (!body || typeof body !== "object") return false;
+  const b = body as Record<string, unknown>;
+  return (
+    typeof b.lessonSlug === "string" &&
+    typeof b.url === "string" &&
+    (b.status === "declared" || b.status === "verified" || b.status === "failed") &&
+    (b.checkedAt === null || typeof b.checkedAt === "string") &&
+    (b.failureReason === null || typeof b.failureReason === "string")
+  );
+}
+
+function isEvidenceList(body: unknown): body is { items: EvidenceItem[] } {
+  if (!body || typeof body !== "object") return false;
+  const items = (body as Record<string, unknown>).items;
+  return Array.isArray(items) && items.every(isEvidenceItem);
+}
+
+/**
+ * El viaje a `/v1/evidence`, común al `POST` y al `GET`.
+ *
+ * AQUÍ NO HAY STREAMING: la respuesta es JSON acotado, así que el timeout es
+ * `AbortSignal.timeout()` como en fetchAccess() y NO el
+ * `AbortController` + `clearTimeout` de streamTutorTurn() — ese baile existe
+ * sólo porque abortar un `fetch` después de la primera cabecera rompe el cuerpo
+ * a media lectura, y aquí no hay cuerpo que romper (§5.3).
+ *
+ * Devuelve el cuerpo ya parseado envuelto, o `{error:true}`: quien decide si la
+ * FORMA sirve es cada llamante, para que la regla positiva se lea entera en un
+ * solo sitio por endpoint.
+ */
+async function requestEvidence(
+  token: string | { error: true },
+  baseUrl: string,
+  timeoutMs: number,
+  method: "GET" | "POST",
+  body?: string
+): Promise<{ body: unknown } | { error: true }> {
+  if (typeof token !== "string") return { error: true };
+
+  const base = baseUrl.replace(/\/+$/, "");
+
+  // LAS CABECERAS SE CONSTRUYEN, NO SE COPIAN, y el conjunto saliente es
+  // EXACTAMENTE éste. Esparcir las entrantes se lleva la Cookie de paso
+  // —tendría precedencia sobre el Bearer dentro de getToken(), abriendo un
+  // segundo canal de credencial no declarado— y también el X-Forwarded-For del
+  // cliente hacia un servicio con `trust proxy` puesto (§5.3, §8.2).
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+
+  try {
+    const res = await fetch(`${base}/v1/evidence`, {
+      method,
+      headers,
+      body,
+      // Sin esto, un apps/api que acepta la conexión y no responde colgaría el
+      // envío del estudiante indefinidamente.
+      signal: AbortSignal.timeout(timeoutMs),
+      // Misma razón que streamTutorTurn(): undici retira `authorization` SÓLO
+      // si el redirect es cross-origin, y un 302 convierte este POST en GET
+      // descartando el cuerpo. apps/api no tiene un solo redirect en su tabla
+      // de rutas, así que un 3xx aquí es por definición inesperado — y con
+      // `manual` llega como status 0, que la regla positiva ya descarta.
+      redirect: "manual",
+    });
+
+    if (res.status !== 200) return { error: true };
+
+    try {
+      return { body: await res.json() };
+    } catch {
+      return { error: true };
+    }
+  } catch {
+    // Timeout, conexión rechazada, DNS, o cualquier otro fallo de red.
+    return { error: true };
+  }
+}
+
+/**
+ * `POST /v1/evidence` — la entrega del estudiante (§5.1).
+ *
+ * REGLA POSITIVA, no enumeración (§5.3): SÓLO un 200 cuyo cuerpo tenga la forma
+ * de `EvidenceItem` produce un resultado; todo lo demás —400 del
+ * `ValidationPipe`, 401, 404, 409, 429, 503, JSON no parseable, o un 200 con
+ * otra forma— es `{error:true}`. NUNCA LANZA.
+ *
+ * Un `status: "failed"` NO es un fallo de este puente: es un 200 con forma
+ * válida y viaja como resultado. Que la comprobación no cuadre es un estado de
+ * la fila, no un error de la petición (goal 4).
+ *
+ * `body` es el cuerpo entrante YA SERIALIZADO y se reenvía tal cual: la
+ * validación de forma es de `evidence.dto.ts` (§5.1), no de aquí.
+ */
+export async function submitEvidence(
+  token: string | { error: true },
+  body: string,
+  baseUrl: string,
+  timeoutMs: number
+): Promise<EvidenceResult> {
+  const res = await requestEvidence(token, baseUrl, timeoutMs, "POST", body);
+  if ("error" in res) return { error: true };
+  return isEvidenceItem(res.body) ? res.body : { error: true };
+}
+
+/**
+ * `GET /v1/evidence` — las filas del propio estudiante (§5.2). Misma regla
+ * positiva: un `items` que no sea una lista de `EvidenceItem` es `{error:true}`,
+ * no una lista a medias.
+ */
+export async function fetchEvidence(
+  token: string | { error: true },
+  baseUrl: string,
+  timeoutMs: number
+): Promise<EvidenceListResult> {
+  const res = await requestEvidence(token, baseUrl, timeoutMs, "GET");
+  if ("error" in res) return { error: true };
+  return isEvidenceList(res.body) ? res.body : { error: true };
 }

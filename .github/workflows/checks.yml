@@ -93,6 +93,14 @@ jobs:
       - name: apps/web — turno del tutor
         run: node apps/web/scripts/check-tutor-turn.ts
 
+      # PRD-007 §9 filas 61-64 (§10 paso F). El paso es OBLIGATORIO y no
+      # redundante con la entrada `check:evidence` de apps/web/package.json:
+      # este workflow lista un paso explícito por script y no invoca ningún
+      # agregado, así que una entrada suelta en el manifiesto no la ejecuta
+      # nadie — es literalmente lo que ya pasó con `check:secrets`.
+      - name: apps/web — puente de evidencia
+        run: node apps/web/scripts/check-evidence-bridge.ts
+
       - name: apps/web — guardas de secretos
         run: node apps/web/scripts/check-secrets.ts
 

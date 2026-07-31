@@ -9,12 +9,13 @@
     "start": "next start -p ${PORT:-3000}",
     "check:access": "node scripts/check-access-bridge.ts",
     "check:analytics": "node scripts/check-analytics.ts",
+    "check:evidence": "node scripts/check-evidence-bridge.ts",
     "check:format": "node scripts/check-format-message.ts",
     "check:schedule": "node scripts/check-schedule.ts",
     "check:secrets": "node scripts/check-secrets.ts",
     "check:turn": "node scripts/check-tutor-turn.ts"
   },
-  "//scripts": "Las seis comprobaciones viajaron con src/ desde la raíz (PRD-006 §4): importan apps/web/src, así que sus imports no cambiaron ni un carácter. `check:secrets` era una entrada suelta que ningún agregado invocaba y por tanto no corría nadie; desde PRD-006 §8.2 la ejecuta CI.",
+  "//scripts": "Las seis primeras viajaron con src/ desde la raíz (PRD-006 §4): importan apps/web/src, así que sus imports no cambiaron ni un carácter. `check:secrets` era una entrada suelta que ningún agregado invocaba y por tanto no corría nadie; desde PRD-006 §8.2 la ejecuta CI. `check:evidence` (PRD-007 §10 paso F) llegó con su paso propio en .github/workflows/checks.yml POR ESO MISMO: ese workflow lista un paso explícito por script y no invoca ningún agregado, así que una entrada suelta aquí no la ejecutaría nadie.",
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",
     "@paddle/paddle-js": "^1.6.4",

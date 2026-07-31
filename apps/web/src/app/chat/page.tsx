@@ -8,7 +8,7 @@ import { auth } from "@/auth";
 import { loadConversation } from "@/lib/conversations";
 import type { Access } from "@shared/access";
 import { fetchAccess, readSessionToken, resolveClientConfig } from "@/lib/api-client";
-import { curriculumSlug, getLessons, toLessonOptions } from "@shared/curriculum";
+import { curriculumSlug, getLessons, toEvidenceLessons } from "@shared/curriculum";
 import ChatClient from "../chat-client";
 import Paywall from "../paywall";
 
@@ -39,7 +39,13 @@ export default async function ChatPage() {
   // saltarlas es lo que evita dejar al estudiante sin historial ni selector
   // de lección cuando apps/api no responde (PRD-003 §5.3).
   const initialMessages = await loadConversation(userId);
-  const lessons = toLessonOptions(await getLessons(curriculumSlug()));
+  // `toEvidenceLessons` y no `toLessonOptions` (PRD-007 §6.6): cada opción
+  // arrastra además `evidenceKind` y `evidencePrompt`, que es lo que decide si
+  // hay panel de entrega y qué se le pide al estudiante. EL CAMBIO ES SÓLO DE
+  // ESTA PÁGINA: `/registro` es pública y sin login, sigue con `toLessonOptions`
+  // y su golden (`check-curriculum-golden.ts`) sigue afirmando que al cliente
+  // anónimo solo viajan `{slug, title}`.
+  const lessons = toEvidenceLessons(await getLessons(curriculumSlug()));
   return (
     <ChatClient
       initialMessages={initialMessages}

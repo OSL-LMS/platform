@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { logout } from "./actions";
-import type { LessonOption } from "@shared/curriculum";
+import type { EvidenceLesson } from "@shared/curriculum";
 import { formatMessage } from "@/lib/format-message";
 import {
   TUTOR_MESSAGE_MAX_LENGTH,
@@ -10,6 +10,12 @@ import {
   decideTurnFailure,
   type TurnFailure,
 } from "@/lib/tutor-turn";
+import {
+  applySubmission,
+  checkEvidenceUrl,
+  decideEvidencePanel,
+  type EvidenceLoad,
+} from "@/lib/evidence-panel";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -55,9 +61,10 @@ export default function ChatClient({
 }: {
   initialMessages?: Message[];
   trialDaysLeft?: number | null;
-  /** Solo `{slug, title}`: `payload.stuck` no tiene por qué viajar al cliente.
-   *  Vacío en la rama sin sesión, que no consulta la base de datos. */
-  lessons?: LessonOption[];
+  /** `{slug, title}` más las dos llaves de evidencia (PRD-007 §6.6):
+   *  `payload.stuck` sigue sin viajar al cliente. Vacío en la rama sin sesión,
+   *  que no consulta la base de datos. */
+  lessons?: EvidenceLesson[];
 }) {
   // La selección inicial sale del currículo, no del literal "L1" que estaba
   // escrito a mano: el `slug` es mutable, y un adoptante sin ningún "L1" tenía
@@ -70,9 +77,97 @@ export default function ChatClient({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // ---- Panel de entrega (PRD-007 §4.3) ------------------------------------
+  // Las cuatro piezas de estado son cableado; QUÉ se pinta con ellas lo decide
+  // src/lib/evidence-panel.ts, que es lo único que la fila 64 de §9 puede
+  // probar bajo Node pelado.
+  const [evidenceLoad, setEvidenceLoad] = useState<EvidenceLoad>({ phase: "loading" });
+  const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [evidenceBusy, setEvidenceBusy] = useState(false);
+  const [evidenceSubmitFailed, setEvidenceSubmitFailed] = useState(false);
+  const [evidenceShapeError, setEvidenceShapeError] = useState<string | null>(null);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, busy]);
+
+  // El `GET` de montaje es DEL CLIENTE y no del Server Component (§4.3): la
+  // página ya hace dos lecturas y una llamada a apps/api antes de pintar, y
+  // apps/api lee el currículo sin caché, así que una tercera llamada en el
+  // camino crítico añadiría un SELECT completo de `curriculum_nodes` al render
+  // de todo el chat. El estado de evidencia cambia con cada entrega; el árbol de
+  // lecciones, una vez por temporada.
+  useEffect(() => {
+    // La rama sin sesión no tiene lecciones y no puede tener evidencia: nos
+    // ahorramos un 401 seguro.
+    if (lessons.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/evidence");
+        if (!res.ok) throw new Error(`GET /api/evidence: ${res.status}`);
+        const body = await res.json();
+        if (cancelled) return;
+        setEvidenceLoad({
+          phase: "ready",
+          items: Array.isArray(body?.items) ? body.items : [],
+        });
+      } catch {
+        // Nunca bloquea la entrega: el panel se pinta igual, en estado "sin
+        // entrega", y reenviar es idempotente.
+        if (!cancelled) setEvidenceLoad({ phase: "unavailable", items: [] });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lessons.length]);
+
+  async function sendEvidence() {
+    const url = evidenceUrl.trim();
+    if (!url || !lesson || evidenceBusy) return;
+
+    // Antes de salir del navegador: un esquema o un puerto equivocados dan un
+    // 400 del ValidationPipe, que la regla positiva del puente (§5.3) convierte
+    // en el mismo `{error:true}` que un 503 — o sea, en "reinténtalo en un
+    // momento", que para este caso es falso porque reintentar falla igual.
+    const shape = checkEvidenceUrl(url);
+    if (!shape.ok) {
+      setEvidenceSubmitFailed(false);
+      setEvidenceShapeError(shape.text);
+      return;
+    }
+
+    setEvidenceShapeError(null);
+    setEvidenceSubmitFailed(false);
+    setEvidenceBusy(true);
+    try {
+      const res = await fetch("/api/evidence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lessonSlug: lesson, url }),
+      });
+      if (!res.ok) throw new Error(`POST /api/evidence: ${res.status}`);
+      const item = await res.json();
+      setEvidenceLoad((load) => applySubmission(load, item));
+      setEvidenceUrl("");
+    } catch (err) {
+      // El viaje falló y la entrega no consta. NO es un `failed` de la
+      // comprobación —eso llega con 200— y por eso tiene su propia línea.
+      console.error("/api/evidence: no se pudo guardar la entrega:", err);
+      setEvidenceSubmitFailed(true);
+    } finally {
+      setEvidenceBusy(false);
+    }
+  }
+
+  const evidence = decideEvidencePanel({
+    lesson: lessons.find((l) => l.slug === lesson),
+    load: evidenceLoad,
+    submitting: evidenceBusy,
+    submitFailed: evidenceSubmitFailed,
+    shapeError: evidenceShapeError,
+  });
 
   // El campo crece con el texto hasta un tope, y vuelve a encogerse al enviar.
   useEffect(() => {
@@ -185,7 +280,15 @@ export default function ChatClient({
             <span className="chat__lesson-short">Lección:</span>
             <select
               value={lesson}
-              onChange={(e) => setLesson(e.target.value)}
+              onChange={(e) => {
+                setLesson(e.target.value);
+                // Lo escrito y el resultado del último envío eran de la lección
+                // anterior: arrastrarlos pintaría el estado de una entrega sobre
+                // otra lección.
+                setEvidenceUrl("");
+                setEvidenceSubmitFailed(false);
+                setEvidenceShapeError(null);
+              }}
               disabled={lessons.length === 0}
             >
               {lessons.map((l) => (
@@ -208,6 +311,80 @@ export default function ChatClient({
           Tu prueba termina en {trialDaysLeft} {trialDaysLeft === 1 ? "día" : "días"} —
           asegura el precio fundador antes de que suba.
         </p>
+      )}
+
+      {/* Panel de entrega (§4.3). NO lleva `role="alert"` ni la caja de error
+          del tutor de abajo: un `failed` es un estado de la comprobación, no
+          del estudiante, y el tratamiento neutro lo decide evidence-panel.ts
+          —incluido el `role`, que se lee de la decisión en vez de escribirse
+          aquí a mano. */}
+      {evidence.visible && (
+        <section className="evidence" aria-labelledby="evidence-heading">
+          <h2 className="sr-only" id="evidence-heading">
+            Entrega de esta lección
+          </h2>
+          <p className="evidence__prompt">{evidence.prompt}</p>
+
+          {evidence.submittedUrl && (
+            <p className="evidence__submitted">
+              <a
+                className="evidence__link"
+                href={evidence.submittedUrl}
+                target="_blank"
+                // Para que la URL del chat no viaje en el Referer a un destino
+                // arbitrario (§8.3).
+                rel="noreferrer"
+              >
+                {evidence.submittedUrl}
+              </a>
+            </p>
+          )}
+
+          <p
+            className={`evidence__status evidence__status--${
+              evidence.status?.tone ?? "neutral"
+            }`}
+            role={evidence.status?.role ?? "status"}
+          >
+            {evidence.status && evidence.status.tone === "affirmative" && (
+              <span className="evidence__mark" aria-hidden="true">
+                ✓{" "}
+              </span>
+            )}
+            {evidence.status?.text ?? ""}
+          </p>
+
+          <form
+            className="evidence__form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendEvidence();
+            }}
+          >
+            <label className="sr-only" htmlFor="evidence-url">
+              Dirección de tu entrega para esta lección
+            </label>
+            <input
+              id="evidence-url"
+              type="url"
+              inputMode="url"
+              value={evidenceUrl}
+              onChange={(e) => setEvidenceUrl(e.target.value)}
+              placeholder="https://…"
+              // La misma cota que `@MaxLength(2048)` en evidence.dto.ts (§5.1),
+              // por lo mismo que el textarea del tutor: que el límite del DTO no
+              // llegue como un 400 después de escribir.
+              maxLength={2048}
+              disabled={evidence.submitDisabled}
+            />
+            <button
+              type="submit"
+              disabled={evidence.submitDisabled || !evidenceUrl.trim()}
+            >
+              {evidence.submitDisabled ? "Comprobando…" : "Entregar"}
+            </button>
+          </form>
+        </section>
       )}
 
       <div className="chat__messages" ref={scrollRef}>
