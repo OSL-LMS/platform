@@ -6,7 +6,7 @@
 // y agruparlo con las unitarias haría que un fallo trivial impidiera correr la
 // comprobación más cargada del PRD.
 //
-// Cubre las filas 1, 2 y 22 de PRD-002 §9.
+// Cubre las filas 1, 2 y 22 de PRD-002 §9, y las filas 59 y 60 de PRD-007 §9.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -18,6 +18,10 @@ import {
   toStageViews,
 } from "../packages/shared/src/curriculum-file.ts";
 import { buildLessonContext } from "../packages/shared/src/curriculum-context.ts";
+import {
+  toEvidenceLessons,
+  toLessonOptions,
+} from "../packages/shared/src/curriculum.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -93,9 +97,23 @@ stages.forEach((stage, i) => {
 const options = lessonsUnder(forest).map((l) => ({ slug: l.slug, title: l.title }));
 assert.deepEqual(options, golden.lessonOptions, "la lista de los selectores cambió");
 
-// No viaja `payload` al cliente.
+// No viaja `payload` al cliente. PRD-007 fila 59: esta aserción es lo que
+// protege `/registro`, que es pública y sin login, y se queda TAL CUAL.
 for (const option of options) {
   assert.deepEqual(Object.keys(option).sort(), ["slug", "title"]);
+}
+
+// La misma exigencia sobre la FUNCIÓN REAL. La de arriba mide un objeto armado
+// a mano en este script, así que por sí sola no vería un `toLessonOptions`
+// ensanchado — que es exactamente lo que la fila 59 dice vigilar. PRD-007 §6.6
+// añadió `toEvidenceLessons` en vez de ensanchar ésta, precisamente porque
+// `registro/page.tsx` la llama sin sesión: `evidencePrompt` no puede viajar ahí.
+for (const option of toLessonOptions(lessonsUnder(forest))) {
+  assert.deepEqual(
+    Object.keys(option).sort(),
+    ["slug", "title"],
+    "toLessonOptions se ensanchó — /registro es pública y sin login"
+  );
 }
 
 // La selección inicial es `lessons[0]?.slug`, no el literal "L1" que estaba
@@ -109,7 +127,65 @@ for (const file of [
   assert.doesNotMatch(text, /useState\("L1"\)|defaultValue="L1"/, `${file} sigue con el literal "L1"`);
 }
 
+// ---------------------------------------------------------------------------
+// PRD-007 fila 60 — `toEvidenceLessons` SÍ lleva las dos llaves
+// ---------------------------------------------------------------------------
+//
+// Se llama a la función real y no se rearman las opciones a mano como hace la
+// fila 22 de arriba: lo que hay que ver es que la proyección de `/chat` arrastra
+// el payload de evidencia, y un objeto construido en este script lo arrastraría
+// aunque la función no lo hiciera.
+const evidenceLessons = toEvidenceLessons(lessonsUnder(forest));
+
+assert.deepEqual(
+  evidenceLessons.map((l) => l.slug),
+  options.map((o) => o.slug),
+  "toEvidenceLessons cambió el contenido o el orden respecto al selector"
+);
+
+for (const l of evidenceLessons) {
+  assert.deepEqual(
+    Object.keys(l).sort(),
+    ["evidenceKind", "evidencePrompt", "slug", "title"],
+    `${l.slug}: la forma de EvidenceLesson cambió`
+  );
+}
+
+// Las siete lecciones del archivo real declaran evidencia desde PRD-007 §10
+// paso C, y `evidenceKind` solo admite `"url"` (§6.4).
+for (const l of evidenceLessons) {
+  assert.equal(l.evidenceKind, "url", `${l.slug} perdió su evidenceKind`);
+  assert.equal(typeof l.evidencePrompt, "string");
+  assert.ok(l.evidencePrompt!.length > 0, `${l.slug} tiene el evidencePrompt vacío`);
+}
+
+// La otra mitad: donde el currículo NO las declara, `undefined` — no `null`, no
+// cadena vacía. Es la rama "esta lección no pide evidencia", que es la que
+// decide que no se pinte panel, y hoy no la cubre ninguna lección del archivo
+// real. Un currículo adoptante que no declare la llave es el goal 6.
+{
+  const adoptante = buildForest(
+    parseCurriculumFile({
+      curriculum: "adoptante",
+      nodes: [
+        {
+          id: "3f6a1c02-8d55-4b71-9e08-7c4a2b6d0f13",
+          slug: "leccion-sin-evidencia",
+          kind: "lesson",
+          title: "Una lección que no pide evidencia",
+          payload: { outcome: "sabes hacer algo", stuck: "el atasco típico" },
+        },
+      ],
+    })
+  );
+  const [sinEvidencia] = toEvidenceLessons(lessonsUnder(adoptante));
+  assert.equal(sinEvidencia.evidenceKind, undefined);
+  assert.equal(sinEvidencia.evidencePrompt, undefined);
+  assert.equal(sinEvidencia.slug, "leccion-sin-evidencia");
+}
+
 console.log(
   `OK — cero cambio visible: ${Object.keys(golden.lessonContext).length - 1} bloques del tutor, ` +
-    `${stages.length} etapas y ${options.length} opciones de selector idénticas al golden.`
+    `${stages.length} etapas y ${options.length} opciones de selector idénticas al golden. ` +
+    `${evidenceLessons.length} lecciones con evidencia declarada.`
 );

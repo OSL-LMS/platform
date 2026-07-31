@@ -8,6 +8,7 @@
 // Regla de código: identificadores en inglés, comentarios en español.
 
 import { buildLessonContext } from "./curriculum-context.ts";
+import { EVIDENCE_KINDS } from "./evidence.ts";
 
 export type CurriculumNodeInput = {
   /** UUID estable, autoría del archivo. ES la identidad del nodo. */
@@ -75,6 +76,16 @@ type PayloadRule = {
    * llaves que exigen el escrutinio del prompt certificado.
    */
   modelBound?: boolean;
+  /**
+   * Lista cerrada de valores admitidos. Se comprueba SOLO cuando
+   * `type === "string"`: sin esa condición, un `{ type: "number", enum: [...] }`
+   * sería representable e inerte — una regla escrita que no comprueba nada.
+   *
+   * Es lo que hace que un `evidenceKind: "repo"` —el tipo que PRD-007 no
+   * implementa— falle en el archivo, bajo revisión de PR, en vez de degradar en
+   * silencio en producción.
+   */
+  enum?: string[];
 };
 
 /**
@@ -99,6 +110,17 @@ export const PAYLOAD_VOCABULARY: Record<string, Record<string, PayloadRule>> = {
   lesson: {
     outcome: { type: "string", required: true, modelBound: true },
     stuck: { type: "string", required: true, modelBound: true },
+    // Qué evidencia pide la lección (PRD-007 §6.4). Su AUSENCIA es "esta
+    // lección no pide evidencia", y por eso las dos son opcionales: un
+    // currículo adoptante que no las declare en ninguna lección usa el sistema
+    // entero sin tocar `src/`.
+    //
+    // Ninguna es `modelBound` — no viajan al bloque de system del tutor. Sí
+    // quedan bajo `walkStrings` + `checkUrlSafety`, que aplica a TODO valor del
+    // payload a cualquier profundidad: un `evidencePrompt` con un enlace hostil
+    // muere en el validador y en la puerta del PR.
+    evidenceKind: { type: "string", required: false, enum: [...EVIDENCE_KINDS] },
+    evidencePrompt: { type: "string", required: false },
   },
 };
 
@@ -363,6 +385,16 @@ function checkPayload(
     }
     if (rule.type === "string" && (value as string).length === 0) {
       fail(`${label(rawNode)}: "payload.${key}" está vacía`);
+    }
+    // SOLO para `string`: una lista cerrada sobre un número o un booleano no
+    // significa nada, y dejarla comprobar aquí haría representable una regla
+    // inerte que el siguiente lector daría por activa.
+    if (rule.type === "string" && rule.enum && !rule.enum.includes(value as string)) {
+      fail(
+        `${label(rawNode)}: "payload.${key}" vale "${value}" y solo se admite ${rule.enum
+          .map((v) => `"${v}"`)
+          .join(", ")}`
+      );
     }
     if (rule.modelBound) {
       checkModelBoundValue(rawNode, `payload.${key}`, value as string);

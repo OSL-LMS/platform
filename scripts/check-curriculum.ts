@@ -3,7 +3,8 @@
 // correrlas enteras sobre un PR (PRD-002 §4.1 paso 2). Se ejecuta con:
 //   node scripts/check-curriculum.ts
 //
-// Cubre las filas 3, 4, 5, 7, 15, 18, 19, 20 y 25 de PRD-002 §9.
+// Cubre las filas 3, 4, 5, 7, 15, 18, 19, 20 y 25 de PRD-002 §9,
+// y las filas 55, 56, 57 y 58 de PRD-007 §9.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
@@ -13,6 +14,7 @@ import {
   lessonContextInputs,
   MAX_NODES,
   parseCurriculumFile,
+  PAYLOAD_VOCABULARY,
   type CurriculumNodeInput,
 } from "../packages/shared/src/curriculum-file.ts";
 import { buildLessonContext } from "../packages/shared/src/curriculum-context.ts";
@@ -344,6 +346,100 @@ const file = (nodes: CurriculumNodeInput[]) => ({ curriculum: "test", nodes });
   // Una frase con dos puntos NO es una URL: el título real de L5 lo demuestra.
   assert.equal(
     parseCurriculumFile(file([lesson({ title: "Git: tu trabajo, a salvo y con historia" })])).length,
+    1
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PRD-007 filas 55-58 — las dos llaves de evidencia del vocabulario de `lesson`
+// ---------------------------------------------------------------------------
+{
+  const conEvidencia = (payload: Record<string, unknown>) =>
+    file([
+      lesson({
+        slug: "L-evidencia",
+        payload: { outcome: "publicas algo", stuck: "el atasco", ...payload },
+      }),
+    ]);
+
+  // Fila 55 — `evidenceKind` fuera del enum. `"repo"` es el tipo que PRD-007 §3
+  // deja explícitamente fuera de alcance: tiene que morir EN EL ARCHIVO, bajo
+  // revisión de PR, en vez de degradar en silencio en producción cuando el
+  // verificador reciba un kind que no sabe comprobar. El mensaje nombra el nodo
+  // y la llave, como el resto del contrato.
+  rejects(
+    () => parseCurriculumFile(conEvidencia({ evidenceKind: "repo" })),
+    /L-evidencia/,
+    /payload\.evidenceKind/,
+    /"url"/
+  );
+  rejects(
+    () => parseCurriculumFile(conEvidencia({ evidenceKind: "URL" })),
+    /payload\.evidenceKind/
+  );
+  // Y el único valor admitido pasa: la regla no es un rechazo indiscriminado.
+  assert.equal(parseCurriculumFile(conEvidencia({ evidenceKind: "url" })).length, 1);
+
+  // El control de tipo sigue delante del de enum: un número no se compara
+  // contra la lista, se rechaza por tipo.
+  rejects(
+    () => parseCurriculumFile(conEvidencia({ evidenceKind: 1 })),
+    /payload\.evidenceKind.*string/s
+  );
+
+  // Fila 56 — `enum` SOLO aplica a `string`. Una lista cerrada sobre un número
+  // no significa nada, y si el validador la comprobara igual sería
+  // representable una regla inerte que el siguiente lector daría por activa.
+  // Se prueba sobre el vocabulario real porque `checkPayload` no se exporta:
+  // se añade un `kind` de usar y tirar y se retira en el `finally`.
+  {
+    const KIND = "regla-enum-sobre-numero";
+    PAYLOAD_VOCABULARY[KIND] = {
+      n: { type: "number", required: true, enum: ["url"] },
+    };
+    try {
+      const flat = parseCurriculumFile(
+        file([
+          {
+            id: crypto.randomUUID(),
+            slug: "N1",
+            kind: KIND,
+            title: "Un nodo con una regla inerte",
+            payload: { n: 7 },
+          },
+        ])
+      );
+      assert.equal(flat.length, 1, "el enum de una regla `number` cambió el veredicto");
+    } finally {
+      delete PAYLOAD_VOCABULARY[KIND];
+    }
+    assert.equal(PAYLOAD_VOCABULARY[KIND], undefined, "el vocabulario quedó contaminado");
+  }
+
+  // Fila 57 — URL hostil en `evidencePrompt`. La llave NO es `modelBound` (no
+  // viaja al bloque de system del tutor) y aun así queda bajo `walkStrings` +
+  // `checkUrlSafety`, que aplica a TODO valor del payload: es lo que impide que
+  // el texto que se le pinta al estudiante lleve un enlace saliente arbitrario.
+  for (const hostile of ["javascript:alert(1)", "//evil.example.com/x"]) {
+    rejects(
+      () =>
+        parseCurriculumFile(
+          conEvidencia({ evidenceKind: "url", evidencePrompt: hostile })
+        ),
+      /payload\.evidencePrompt/,
+      /esquema|allowlist/
+    );
+  }
+
+  // Fila 58 — una lección sin evidencia sigue siendo válida. Es el criterio de
+  // adoptabilidad del goal 6: un currículo que no declare la llave en ninguna
+  // lección usa el sistema entero sin tocar `src/`.
+  assert.equal(parseCurriculumFile(conEvidencia({})).length, 1);
+  // Y las dos son opcionales POR SEPARADO, no como pareja.
+  assert.equal(parseCurriculumFile(conEvidencia({ evidenceKind: "url" })).length, 1);
+  assert.equal(
+    parseCurriculumFile(conEvidencia({ evidencePrompt: "Pega el enlace de tu web." }))
+      .length,
     1
   );
 }

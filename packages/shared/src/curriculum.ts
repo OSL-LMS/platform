@@ -17,12 +17,21 @@ import {
   lessonsUnder,
   type CurriculumNode,
 } from "./curriculum-file.ts";
+import { isEvidenceKind, type EvidenceKind } from "./evidence.ts";
 
 export type { CurriculumNode } from "./curriculum-file.ts";
 
 /** La forma que reciben los selectores. No el nodo completo: `payload.stuck`
  *  no tiene por qué viajar al cliente, y `/registro` es pública y sin login. */
 export type LessonOption = Pick<CurriculumNode, "slug" | "title">;
+
+/** Lo que `/chat` necesita además del selector: qué evidencia pide la lección y
+ *  qué se le muestra al estudiante para pedírsela (PRD-007 §6.6). Es un tipo
+ *  APARTE de `LessonOption` a propósito — ver `toEvidenceLessons`. */
+export type EvidenceLesson = LessonOption & {
+  evidenceKind?: EvidenceKind;
+  evidencePrompt?: string;
+};
 
 export class CurriculumNotLoadedError extends Error {
   constructor(curriculum: string) {
@@ -183,4 +192,29 @@ export async function getLessonContextInputs(
 /** Lo que viaja al cliente: `{slug, title}` y nada más. */
 export function toLessonOptions(lessons: CurriculumNode[]): LessonOption[] {
   return lessons.map((l) => ({ slug: l.slug, title: l.title }));
+}
+
+/**
+ * Lo que viaja a `/chat`: el selector MÁS las dos llaves de evidencia.
+ *
+ * Es una función aparte y NO un ensanchamiento de `toLessonOptions` (PRD-007
+ * §6.6). A `toLessonOptions` la llaman dos páginas, y la segunda —`/registro`—
+ * es PÚBLICA y sin login: ensancharla publicaría `evidencePrompt` a un visitante
+ * anónimo y rompería la invariante de que al cliente solo viajan `{slug, title}`.
+ *
+ * `payload` llega de Postgres como `Record<string, unknown>`, así que los dos
+ * valores se estrechan en vez de afirmarse: lo que el vocabulario no admita se
+ * lee como "esta lección no pide evidencia", que es la rama sin panel.
+ */
+export function toEvidenceLessons(lessons: CurriculumNode[]): EvidenceLesson[] {
+  return lessons.map((l) => {
+    const kind = l.payload.evidenceKind;
+    const prompt = l.payload.evidencePrompt;
+    return {
+      slug: l.slug,
+      title: l.title,
+      evidenceKind: isEvidenceKind(kind) ? kind : undefined,
+      evidencePrompt: typeof prompt === "string" ? prompt : undefined,
+    };
+  });
 }

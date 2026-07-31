@@ -174,10 +174,15 @@ function authorize(diff: Diff, options: Options): void {
   const problems: string[] = [];
 
   if (diff.remove.length > 0 && !options.allowDeletes) {
+    // La evidencia de PRD-007 NO cuelga de estas filas por clave foránea, y es
+    // deliberado (§6.3 / D6): una edición de temario no debe poder destruir el
+    // trabajo que veinte estudiantes ya hicieron, ni fallar por él. Lo que el
+    // operador tiene que saber al autorizar un borrado es exactamente eso.
     problems.push(
       `${diff.remove.length} nodo(s) desaparecerían del archivo. Con ellos muere su ` +
-        `\`id\` y todo lo que cuelgue de esa fila (hoy nada; en cuanto exista el ` +
-        `seguimiento de progreso, el progreso del estudiante por cascada):`
+        `\`id\`. La evidencia que los estudiantes ya entregaron NO se borra: ` +
+        `sobrevive en \`lesson_evidence\`, deja de mostrárseles mientras el nodo no ` +
+        `exista, y vuelve sola si el nodo regresa con el mismo \`id\`:`
     );
     for (const row of diff.remove) problems.push(`    - ${row.slug} — "${row.title}"`);
     problems.push("  Si es lo que quieres, repite con --allow-deletes.");

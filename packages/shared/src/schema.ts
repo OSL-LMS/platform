@@ -9,6 +9,7 @@
 //
 // Regla de código: identificadores en inglés, comentarios en español.
 
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -20,9 +21,11 @@ import {
   jsonb,
   unique,
   index,
+  check,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
+import { EVIDENCE_STATUSES } from "./evidence.ts";
 
 // ---------------------------------------------------------------------------
 // 1. Tablas requeridas por el adapter de Auth.js v5
@@ -187,6 +190,55 @@ export const curriculumNodes = pgTable(
   ]
 );
 
+// La evidencia que un estudiante entrega por lección (PRD-007). Una fila por
+// `(usuario, lección)`: reenviar ACTUALIZA la fila, nunca la duplica.
+//
+// El estado distingue declarado de verificado en el ESQUEMA, no en la
+// interpretación: es lo que permite que un tercero pregunte por SQL qué está
+// verificado sin conocer la aplicación.
+export const evidenceStatus = pgEnum("evidence_status", EVIDENCE_STATUSES);
+
+export const lessonEvidence = pgTable(
+  "lesson_evidence",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // SIN clave foránea a `curriculum_nodes`, a propósito (PRD-007 §6.3 / D6).
+    // La elección real no era contra la cascada —el cargador hace upsert y solo
+    // borra bajo `--allow-deletes`— sino contra `ON DELETE NO ACTION`, que haría
+    // que retirar una lección del temario abortase la carga por el trabajo que
+    // veinte estudiantes ya hicieron. Sin la clave, el nodo se borra, las filas
+    // SOBREVIVEN, la lectura las omite mientras el nodo no resuelva, y vuelven
+    // solas si el nodo regresa: el `id` es identidad estable.
+    lessonNodeId: uuid("lesson_node_id").notNull(),
+    url: text("url").notNull(),
+    status: evidenceStatus("status").notNull().default("declared"),
+    // Código de la lista cerrada de §4.2, nunca prosa del destino: lo que traen
+    // los errores de red es el host o la IP resuelta (§8.5).
+    failureReason: text("failure_reason"),
+    // `{ mode: "date" }` en las tres NO es decorativo: el defecto de Drizzle es
+    // modo cadena y devuelve `2026-07-31 18:22:41`, que no es ni un `Date` ni el
+    // literal ISO que promete §5.1.
+    checkedAt: timestamp("checked_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (row) => [
+    // Nombre estable: es la llave del upsert y, como su índice btree lleva
+    // `user_id` de primera columna, TAMBIÉN sirve la lectura por estudiante —
+    // por eso no hay un índice adicional por `user_id`.
+    unique("lesson_evidence_user_lesson_key").on(row.userId, row.lessonNodeId),
+    // El dato de abandono por lección: `WHERE lesson_node_id = $1 GROUP BY status`.
+    index("lesson_evidence_lesson_status_idx").on(row.lessonNodeId, row.status),
+    // "Todo lo guardado es https" pasa a ser estructural y no solo del DTO.
+    // Importa el día que la página pública del portafolio renderice estas filas
+    // entre usuarios: React escapa nodos de texto, no `href` (§8.3).
+    check("lesson_evidence_url_https_check", sql`${row.url} LIKE 'https://%'`),
+  ]
+);
+
 // ---------------------------------------------------------------------------
 // Tipos inferidos (cómodos para los agentes de auth y persistencia)
 // ---------------------------------------------------------------------------
@@ -201,3 +253,5 @@ export type Registration = typeof registrations.$inferSelect;
 export type NewRegistration = typeof registrations.$inferInsert;
 export type CurriculumNodeRow = typeof curriculumNodes.$inferSelect;
 export type NewCurriculumNodeRow = typeof curriculumNodes.$inferInsert;
+export type LessonEvidenceRow = typeof lessonEvidence.$inferSelect;
+export type NewLessonEvidenceRow = typeof lessonEvidence.$inferInsert;
