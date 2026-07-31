@@ -157,6 +157,29 @@ function baseRef(): string {
       // Esa referencia no existe en este clon; se prueba la siguiente.
     }
   }
+
+  // EN CI NO SE DEGRADA (PRD-006 §9 fila 8). Fuera de CI, caer a `HEAD` es un
+  // último recurso razonable: en la rama por defecto es la comparación que se
+  // quiere. Dentro de CI es un falso verde, y de la peor clase — comparar el
+  // archivo consigo mismo produce siempre un diff vacío, así que la
+  // comprobación IMPRIME OK sin haber mirado nada y nadie se entera.
+  //
+  // Llegar aquí en CI significa clon superficial: `actions/checkout` por
+  // defecto usa `fetch-depth: 1` y en `pull_request` deja HEAD desacoplado sin
+  // refs de rama, con lo que las cuatro sondas de arriba fallan. El workflow
+  // fija `fetch-depth: 0` para evitarlo, pero ese archivo es editable en un PR
+  // (§8.5), así que la defensa no puede vivir solo allí. Falla ruidosamente y
+  // di cómo se arregla.
+  if (process.env.GITHUB_ACTIONS) {
+    throw new Error(
+      "check-curriculum-identity: ninguna referencia de rama resuelve en este clon, " +
+        "así que la comparación sería contra HEAD — es decir, el archivo contra sí " +
+        "mismo, un OK vacío. En CI eso es un fallo, no una degradación.\n" +
+        "  Causa casi segura: clon superficial. `actions/checkout` necesita " +
+        "`fetch-depth: 0` (ver .github/workflows/checks.yml y PRD-006 §7.4 punto 1)."
+    );
+  }
+
   return "HEAD";
 }
 
