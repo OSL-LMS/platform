@@ -1,7 +1,7 @@
 "use server";
 
-import { db } from "@/lib/db";
-import { registrations } from "@/lib/schema";
+import { db } from "@shared/db";
+import { registrations } from "@shared/schema";
 import { track } from "@/lib/analytics";
 import { Resend } from "resend";
 

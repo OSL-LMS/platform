@@ -132,7 +132,13 @@ const SECRET = "sk-ant-api03-un-valor-que-no-debe-aparecer-en-ningun-sitio";
     // son del cliente—, así que lo importa POR EFECTO (`import "@/lib/…";`)
     // sólo para armar el guarda. Un patrón que exija `from` daría por roto
     // exactamente el estado final que este check existe para vigilar.
-    /import\s+(?:[^;]*?\s+from\s+)?["']@\/lib\/tutor-turn["']/,
+    //
+    // ANCLADO A PRINCIPIO DE LÍNEA con `^…/m`, igual que el guarda de abajo.
+    // Sin el ancla el patrón casaba también DENTRO de un comentario, así que
+    // comentar el import —`// import "@/lib/tutor-turn";`— dejaba este tripwire
+    // en verde con el guarda desarmado. Borrarlo sí fallaba; comentarlo no, y
+    // comentar es la forma más probable de desactivar algo "un momento".
+    /^\s*import\s+(?:[^;]*?\s+from\s+)?["']@\/lib\/tutor-turn["']/m,
     "src/app/api/chat/route.ts tiene que importar src/lib/tutor-turn.ts: es lo " +
       "que hace que el guarda del paso E se cargue en el arranque de Next y no " +
       "sea una función que nadie ejecuta"

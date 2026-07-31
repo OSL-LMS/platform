@@ -1,6 +1,5 @@
-// Costura hacia el prompt certificado de la raíz (PRD-005 §7).
-//
-// ponytail: import temporal a la raíz; lo cierra la fase de packages/shared, ver ADR-001 §7
+// Costura hacia el prompt certificado de `packages/shared` (PRD-005 §7,
+// repuntada por PRD-006 §5.1).
 //
 // POR QUÉ RE-EXPORTAR Y NO COPIAR, que aquí no es una preferencia de estilo:
 // `TUTOR_SYSTEM_PROMPT` lo certifica un banco de 35 evals y `CONTRIBUTING.md`
@@ -18,4 +17,4 @@
 //
 // Regla de código: identificadores en inglés, comentarios en español.
 
-export * from "../../../../src/lib/tutor-prompt.ts";
+export * from "../../../../packages/shared/src/tutor-prompt.ts";

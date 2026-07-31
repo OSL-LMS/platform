@@ -6,9 +6,9 @@
 
 import { auth } from "@/auth";
 import { loadConversation } from "@/lib/conversations";
-import type { Access } from "@/lib/access";
+import type { Access } from "@shared/access";
 import { fetchAccess, readSessionToken, resolveClientConfig } from "@/lib/api-client";
-import { curriculumSlug, getLessons, toLessonOptions } from "@/lib/curriculum";
+import { curriculumSlug, getLessons, toLessonOptions } from "@shared/curriculum";
 import ChatClient from "../chat-client";
 import Paywall from "../paywall";
 

@@ -16,8 +16,8 @@ import {
   lessonsUnder,
   parseCurriculumFile,
   toStageViews,
-} from "../src/lib/curriculum-file.ts";
-import { buildLessonContext } from "../src/lib/curriculum-context.ts";
+} from "../packages/shared/src/curriculum-file.ts";
+import { buildLessonContext } from "../packages/shared/src/curriculum-context.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -100,7 +100,10 @@ for (const option of options) {
 
 // La selección inicial es `lessons[0]?.slug`, no el literal "L1" que estaba
 // escrito a mano en los dos componentes.
-for (const file of ["src/app/chat-client.tsx", "src/app/registro/registro-form.tsx"]) {
+for (const file of [
+  "apps/web/src/app/chat-client.tsx",
+  "apps/web/src/app/registro/registro-form.tsx",
+]) {
   const text = readFileSync(join(ROOT, file), "utf8");
   assert.match(text, /lessons\[0\]\?\.slug/, `${file} no deriva la selección inicial del currículo`);
   assert.doesNotMatch(text, /useState\("L1"\)|defaultValue="L1"/, `${file} sigue con el literal "L1"`);

@@ -134,8 +134,11 @@ describe("build y arranque", () => {
     const emitted = readFileSync(join(API_ROOT, ENTRYPOINT), "utf8");
     expect(emitted).toContain("require(");
 
-    // Y el esquema de la raíz viaja al bundle como CommonJS, en su propia rama.
-    const schema = readFileSync(join(API_ROOT, "dist/src/lib/schema.js"), "utf8");
+    // Y el esquema compartido viaja al bundle como CommonJS, en su propia rama.
+    // La rama se movió con PRD-006 §7.2: el rootDir inferido sigue siendo la
+    // raíz del repo, así que la ruta emitida sigue al fuente de dist/src/lib a
+    // dist/packages/shared/src. Es el único literal de ruta emitida en apps/api.
+    const schema = readFileSync(join(API_ROOT, "dist/packages/shared/src/schema.js"), "utf8");
     expect(schema).toContain("subscriptions");
 
     const port = await freePort();

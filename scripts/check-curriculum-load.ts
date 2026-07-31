@@ -107,11 +107,11 @@ process.env.DATABASE_URL = TEST_URL;
 
 const { eq } = await import("drizzle-orm");
 const { sql } = await import("drizzle-orm");
-const { db } = await import("../src/lib/db.ts");
-const { curriculumNodes } = await import("../src/lib/schema.ts");
+const { db } = await import("../packages/shared/src/db.ts");
+const { curriculumNodes } = await import("../packages/shared/src/schema.ts");
 const { getAncestors, getCurriculumForest, getLessons, getLessonContextInputs, CurriculumNotLoadedError } =
-  await import("../src/lib/curriculum.ts");
-const { buildLessonContext } = await import("../src/lib/curriculum-context.ts");
+  await import("../packages/shared/src/curriculum.ts");
+const { buildLessonContext } = await import("../packages/shared/src/curriculum-context.ts");
 
 try {
   await db.select().from(curriculumNodes).limit(1);

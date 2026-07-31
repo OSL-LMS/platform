@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { curriculumSlug, getLessons, toLessonOptions } from "@/lib/curriculum";
+import { curriculumSlug, getLessons, toLessonOptions } from "@shared/curriculum";
 import RegistroForm from "./registro-form";
 import TrackingPixel from "../tracking-pixel";
 

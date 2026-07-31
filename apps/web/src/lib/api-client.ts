@@ -23,7 +23,7 @@
 //
 // Regla de código: identificadores en inglés, comentarios en español.
 
-import type { Access } from "./access";
+import type { Access } from "@shared/access";
 
 export type ApiResult = Access | { error: true };
 

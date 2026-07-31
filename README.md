@@ -35,23 +35,37 @@ Las variables del núcleo (Anthropic, Postgres, Auth.js, Resend) y para qué sir
 ## Estructura
 
 ```
-src/
-  app/
-    page.tsx                       # landing pública
-    chat/page.tsx                  # el tutor (tras login)
-    chat-client.tsx                # UI del chat con streaming
-    paywall.tsx                    # muro de pago al vencer el trial
-    signin/ registro/              # acceso y captación de correo
-    precios/ terminos/ ...         # páginas públicas (legal + Paddle)
-    api/
-      chat/route.ts                # llama a Sonnet con streaming
-      auth/[...nextauth]/route.ts  # Auth.js
-  lib/
-    tutor-prompt.ts                # system prompt certificado del tutor
-    api-client.ts                  # puente hacia apps/api (acceso y cobro)
-    access.ts                      # solo el tipo Access; la lógica vive en apps/api
-    schema.ts  db.ts  conversations.ts
-  auth.ts  auth.config.ts  middleware.ts
+apps/web/                          # la app Next (ADR-001 §2, PRD-006)
+  src/
+    app/
+      page.tsx                     # landing pública
+      chat/page.tsx                # el tutor (tras login)
+      chat-client.tsx              # UI del chat con streaming
+      paywall.tsx                  # muro de pago al vencer el trial
+      signin/ registro/            # acceso y captación de correo
+      precios/ terminos/ ...       # páginas públicas (legal + Paddle)
+      api/
+        chat/route.ts              # proxy del turno hacia apps/api (PRD-005)
+        auth/[...nextauth]/route.ts  # Auth.js
+    lib/
+      api-client.ts                # puente hacia apps/api (acceso, cobro, tutor)
+      tutor-turn.ts                # cuerpo saliente y guarda de la clave
+      analytics.ts  conversations.ts  format-message.ts  pixel.ts  schedule.ts
+    auth.ts  auth.config.ts  middleware.ts
+  scripts/                         # las seis comprobaciones que dependen de src/
+
+apps/api/                          # el servicio NestJS (PRD-003, 004, 005)
+  src/                             # acceso, cobro, reconciliación y el tutor
+
+packages/shared/src/               # lo que consumen dos o más paquetes
+  schema.ts  db.ts                 # esquema Drizzle y el pool
+  tutor-prompt.ts                  # system prompt certificado del tutor
+  curriculum-file.ts               # parser del currículo y control de URLs
+  curriculum.ts  curriculum-context.ts  window.ts
+  access.ts  analytics-events.ts   # tipos de dominio
+
+scripts/                           # herramientas de dato y comprobaciones
+curriculum/  drizzle/              # el currículo versionado y las migraciones
 ```
 
 ## Desplegar en Railway
@@ -63,7 +77,7 @@ src/
 
 ## El prompt del tutor está certificado
 
-`src/lib/tutor-prompt.ts` contiene el system prompt del tutor, certificado contra un banco de evaluaciones (casos de presión donde el tutor *no* debe filtrar la respuesta). **Regla del proyecto:** ningún cambio de prompt o de modelo se despliega sin pasar el banco completo en verde, y toda fuga nueva entra como caso de prueba *antes* del arreglo. Si tu contribución toca el prompt, mira primero [CONTRIBUTING.md](./CONTRIBUTING.md).
+`packages/shared/src/tutor-prompt.ts` contiene el system prompt del tutor, certificado contra un banco de evaluaciones (casos de presión donde el tutor *no* debe filtrar la respuesta). **Regla del proyecto:** ningún cambio de prompt o de modelo se despliega sin pasar el banco completo en verde, y toda fuga nueva entra como caso de prueba *antes* del arreglo. Si tu contribución toca el prompt, mira primero [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Licencia
 

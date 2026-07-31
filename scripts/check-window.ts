@@ -8,8 +8,8 @@
 // si esto se rompe, el tutor devuelve 400 justo a los estudiantes con la
 // conversación más larga — los más constantes.
 import assert from "node:assert/strict";
-import { trimWindow, MAX_WINDOW_MESSAGES } from "../src/lib/window.ts";
-import type { ConversationMessage } from "../src/lib/schema.ts";
+import { trimWindow, MAX_WINDOW_MESSAGES } from "../packages/shared/src/window.ts";
+import type { ConversationMessage } from "../packages/shared/src/schema.ts";
 
 // Hilo alterno user/assistant de `n` mensajes, empezando por el usuario.
 const thread = (n: number): ConversationMessage[] =>

@@ -14,8 +14,8 @@ import {
   MAX_NODES,
   parseCurriculumFile,
   type CurriculumNodeInput,
-} from "../src/lib/curriculum-file.ts";
-import { buildLessonContext } from "../src/lib/curriculum-context.ts";
+} from "../packages/shared/src/curriculum-file.ts";
+import { buildLessonContext } from "../packages/shared/src/curriculum-context.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -377,7 +377,7 @@ assert.ok(realNodes.length > 0, "curriculum/contextia.json quedó vacío");
     try {
       execFileSync(
         process.execPath,
-        ["--input-type=module", "-e", `await import(${JSON.stringify(join(ROOT, "src/lib/db.ts"))})`],
+        ["--input-type=module", "-e", `await import(${JSON.stringify(join(ROOT, "packages/shared/src/db.ts"))})`],
         { stdio: "pipe" }
       );
       return 0;
@@ -385,12 +385,40 @@ assert.ok(realNodes.length > 0, "curriculum/contextia.json quedó vacío");
       return (err as { status?: number }).status ?? 1;
     }
   })();
-  assert.equal(status, 0, "src/lib/db.ts no es importable desde Node — revisa el prerrequisito de §9");
+  assert.equal(
+    status,
+    0,
+    "packages/shared/src/db.ts no es importable desde Node — revisa el prerrequisito de §9"
+  );
 }
 
 // ---------------------------------------------------------------------------
-// Filas 19 y 20 — invariantes de §7, frontera de confianza y `src/lib` limpio
+// Filas 19 y 20 — invariantes de §7, frontera de confianza y biblioteca limpia
 // ---------------------------------------------------------------------------
+//
+// LAS RAÍCES VAN ESCRITAS ENTERAS Y A MANO (PRD-006 §8.1). Antes de la partición
+// del árbol bastaba `sourceFiles("src")`; ahora un repunte ingenuo a
+// `apps/web/src` dejaría `packages/shared/src` fuera de alcance —y ahí viven
+// `curriculum-file.ts`, `curriculum-context.ts` y `schema.ts`—, con lo que las
+// dos invariantes de abajo pasarían a VERDE examinando menos. Ese es el modo de
+// fallo que este bloque existe para no tener.
+const SCAN_ROOTS = [
+  join("apps", "web", "src"),
+  join("packages", "shared", "src"),
+  "scripts",
+  join("apps", "web", "scripts"),
+];
+
+// Dónde se aplica la fila 19(b): las raíces de código de aplicación y de
+// biblioteca. Los `scripts/` quedan fuera a propósito — seleccionar el currículo
+// por literal es justo lo que hacen, es su trabajo.
+const SOURCE_ROOTS = [join("apps", "web", "src"), join("packages", "shared", "src")];
+
+// Dónde se aplica la fila 20: lo que antes era el único `src/lib` son ahora DOS
+// directorios (PRD-006 §8.1) — la biblioteca privada de la app y los módulos
+// compartidos.
+const LIB_ROOTS = [join("apps", "web", "src", "lib"), join("packages", "shared", "src")];
+
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
@@ -408,10 +436,51 @@ function stripComments(text: string): string {
   return text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
-const sources = [...sourceFiles("src"), ...sourceFiles("scripts")].map((path) => ({
+// PRD-006 §9 fila 6, primera mitad — la lista de raíces no puede encogerse en
+// silencio. Borrar una raíz deja a las supervivientes no vacías, así que el
+// recuento por raíz de abajo no lo detectaría: es el mismo fallo un nivel más
+// arriba. La duplicación con `SCAN_ROOTS` es DELIBERADA — esta línea es la copia
+// declarada en PRD-006 §8.1, y su desacuerdo con la constante es la señal.
+assert.deepEqual(
+  SCAN_ROOTS,
+  [
+    join("apps", "web", "src"),
+    join("packages", "shared", "src"),
+    "scripts",
+    join("apps", "web", "scripts"),
+  ],
+  "la lista de raíces de escaneo dejó de coincidir con la declarada en PRD-006 §8.1"
+);
+
+const sources = SCAN_ROOTS.flatMap((root) => {
+  const files = sourceFiles(root);
+  // PRD-006 §9 fila 6, segunda mitad — cobertura no vacía POR RAÍZ. Una mudanza
+  // futura que vacíe un escaneo falla aquí en vez de pasar verde examinando cero
+  // archivos.
+  assert.ok(files.length > 0, `la raíz de escaneo ${root} no examinó ningún archivo`);
+  return files;
+}).map((path) => ({
   path,
   text: stripComments(readFileSync(join(ROOT, path), "utf8")),
 }));
+
+// EL MISMO PISO, UN NIVEL MÁS ABAJO. `SCAN_ROOTS` decide qué archivos se leen;
+// `SOURCE_ROOTS` y `LIB_ROOTS` deciden a cuáles se les aplica cada invariante,
+// filtrando por prefijo. Un piso sobre el escaneo no cubre a los selectores: si
+// una entrada de `LIB_ROOTS` apunta a un directorio que ya no existe, la otra
+// mantiene el filtro no vacío y el control examina la mitad de lo que debe sin
+// dejar de dar verde — que es el fallo de §8.1 exactamente, una capa más abajo.
+for (const [nombre, roots] of [
+  ["SOURCE_ROOTS", SOURCE_ROOTS],
+  ["LIB_ROOTS", LIB_ROOTS],
+] as const) {
+  for (const root of roots) {
+    assert.ok(
+      sources.some((s) => s.path.startsWith(root)),
+      `${nombre}: la raíz ${root} no selecciona ningún archivo — el control que la usa estaría pasando en vacío`
+    );
+  }
+}
 
 {
   // (a) Un solo escritor desplegado contra `curriculum_nodes`. La excepción
@@ -441,7 +510,7 @@ const sources = [...sourceFiles("src"), ...sourceFiles("scripts")].map((path) =>
       /[=!]==?\s*["'`]contextia["'`]|["'`]contextia["'`]\s*[=!]==?/,
       `${path} ramifica por el literal "contextia"`
     );
-    if (path.startsWith("src")) {
+    if (SOURCE_ROOTS.some((root) => path.startsWith(root))) {
       assert.doesNotMatch(
         text,
         CURRICULUM_READERS,
@@ -451,9 +520,25 @@ const sources = [...sourceFiles("src"), ...sourceFiles("scripts")].map((path) =>
   }
 
   // (c) `/api/chat` no lee ningún selector de currículo del cuerpo (§8.5).
-  const route = sources.find((s) => s.path === join("src", "app", "api", "chat", "route.ts"))!;
+  // El `!` convierte un fallo de búsqueda en un `TypeError` opaco, así que la
+  // ruta se afirma antes: tras PRD-006 este literal vive en `apps/web`.
+  const route = sources.find(
+    (s) => s.path === join("apps", "web", "src", "app", "api", "chat", "route.ts")
+  );
+  assert.ok(route, "no se encontró apps/web/src/app/api/chat/route.ts en el escaneo");
   assert.doesNotMatch(route.text, /body\.curriculum|curriculum\s*:\s*body/);
-  assert.match(route.text, /curriculumSlug\(\)/);
+  // La otra mitad de (c) —`assert.match(route.text, /curriculumSlug\(\)/)`—
+  // SE RETIRA, y no por conveniencia de esta mudanza: llevaba roto desde el
+  // paso E de PRD-005, que vació este handler a proxy y se llevó la resolución
+  // del currículo a apps/api (`CurriculumRepository`, con el slug de su propia
+  // configuración). El proxy ya no toca currículo, así que exigirle que llame a
+  // `curriculumSlug()` es exigir que vuelva a cruzar la frontera que PRD-005
+  // compró. Verificado que falla igual en `main`: no lo rompió PRD-006, lo
+  // destapó — nadie lo vio porque hasta este PRD no había nada que ejecutara
+  // esta comprobación.
+  //
+  // Lo que SÍ sigue guardando algo es la línea de arriba: el proxy no puede
+  // aceptar un selector de currículo desde el cuerpo del cliente.
 
   // (d) Todo `href` nacido del `payload` lleva rel="noreferrer noopener". Se
   //     mira la ETIQUETA entera, no la línea: el formato normal de JSX en este
@@ -470,12 +555,12 @@ const sources = [...sourceFiles("src"), ...sourceFiles("scripts")].map((path) =>
     }
   }
 
-  // Fila 20 — ningún módulo de `src/lib/` exporta contenido del currículo.
-  // `grep` acotado a src/lib con excepción nombrada para schedule.ts, que
-  // conserva sus literales L1–L7 hasta CON-7.
+  // Fila 20 — ningún módulo de biblioteca exporta contenido del currículo.
+  // `grep` acotado a las dos raíces de LIB_ROOTS con excepción nombrada para
+  // schedule.ts, que conserva sus literales L1–L7 hasta CON-7.
   for (const { path, text } of sources) {
-    if (!path.startsWith(join("src", "lib"))) continue;
-    if (path === join("src", "lib", "schedule.ts")) continue;
+    if (!LIB_ROOTS.some((root) => path.startsWith(root))) continue;
+    if (path === join("apps", "web", "src", "lib", "schedule.ts")) continue;
     assert.doesNotMatch(text, /["'`]L[1-7]["'`]/, `${path} contiene literales de lección`);
     assert.doesNotMatch(
       text,

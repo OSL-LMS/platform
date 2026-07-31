@@ -13,13 +13,13 @@
 import { readFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { db } from "../src/lib/db.ts";
-import { curriculumNodes } from "../src/lib/schema.ts";
+import { db } from "../packages/shared/src/db.ts";
+import { curriculumNodes } from "../packages/shared/src/schema.ts";
 import {
   parseCurriculumFile,
   SLUG_PATTERN,
   type FlatNode,
-} from "../src/lib/curriculum-file.ts";
+} from "../packages/shared/src/curriculum-file.ts";
 
 const DEFAULT_FILE = "curriculum/contextia.json";
 

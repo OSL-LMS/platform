@@ -16,14 +16,14 @@ import Resend from "next-auth/providers/resend";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 
 import { authConfig } from "@/auth.config";
-import { db } from "@/lib/db";
+import { db } from "@shared/db";
 import {
   users,
   accounts,
   sessions,
   verificationTokens,
   registrations,
-} from "@/lib/schema";
+} from "@shared/schema";
 
 // Aumentamos el tipo de la sesión para que `session.user.id` (string) sea parte
 // del contrato tipado. Sin esto, asignarlo en el callback rompería bajo `strict`.

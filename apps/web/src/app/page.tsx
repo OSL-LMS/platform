@@ -3,8 +3,8 @@ import Link from "next/link";
 import LegalFooter from "./legal-footer";
 import TrackingPixel from "./tracking-pixel";
 import VodEmbed from "./vod-embed";
-import { curriculumSlug, getCurriculumForest, getLessons } from "@/lib/curriculum";
-import { toStageViews } from "@/lib/curriculum-file";
+import { curriculumSlug, getCurriculumForest, getLessons } from "@shared/curriculum";
+import { toStageViews } from "@shared/curriculum-file";
 import { formatSessionDate, nextSession, seasonAgenda } from "@/lib/schedule";
 
 // Landing pública (raíz). Implementa `60 Negocio/Nueva home de academia.md`:

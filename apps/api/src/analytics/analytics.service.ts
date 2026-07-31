@@ -19,23 +19,12 @@ import { PostHog } from "posthog-node";
 import { API_CONFIG, type ApiConfig } from "../config.ts";
 import { errorName } from "../common/error-fields.ts";
 
-// El embudo entero, explícito. Un union en vez de `string` para que un typo no
-// invente un evento nuevo y parta el embudo en dos en el panel de PostHog.
-//
-// ponytail: duplicado de src/lib/analytics.ts durante esta fase; lo cierra la fase de packages/shared, ver ADR-001 §7
-export type TutorEvent =
-  | "server_pageview"
-  | "registered"
-  | "trial_started"
-  | "tutor_message_sent"
-  | "subscription_activated"
-  | "subscription_canceled"
-  // AUDITORÍA, NO EMBUDO (PRD-004 §3, §8.2). Lo emite el reconciliador por cada
-  // escritura aplicada, con `{ from, to, paddle_subscription_id }`.
-  // `subscription_activated` significa "Paddle nos lo confirmó por webhook" y su
-  // marca de tiempo alimenta el embudo; mezclar aquí las reparaciones lo
-  // corrompería con eventos que no son conversiones.
-  | "subscription_reconciled";
+// El union vivía aquí duplicado por copia y desde PRD-006 §5.2 vive una sola vez
+// en `packages/shared`. Este proceso tipa con `TutorEvent` —embudo MÁS
+// auditoría— porque el reconciliador es quien emite el miembro de auditoría;
+// `apps/web` tipa con `FunnelEvent` y por eso no puede emitirlo.
+import type { TutorEvent } from "../../../../packages/shared/src/analytics-events.ts";
+export type { TutorEvent };
 
 @Injectable()
 export class AnalyticsService implements OnModuleDestroy {

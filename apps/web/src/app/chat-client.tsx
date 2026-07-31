@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { logout } from "./actions";
-import type { LessonOption } from "@/lib/curriculum";
+import type { LessonOption } from "@shared/curriculum";
 import { formatMessage } from "@/lib/format-message";
 import {
   TUTOR_MESSAGE_MAX_LENGTH,

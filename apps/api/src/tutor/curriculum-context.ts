@@ -1,6 +1,5 @@
-// Costura hacia la composición del bloque de contexto de la raíz (PRD-005 §7).
-//
-// ponytail: import temporal a la raíz; lo cierra la fase de packages/shared, ver ADR-001 §7
+// Costura hacia la composición del bloque de contexto de `packages/shared`
+// (PRD-005 §7, repuntada por PRD-006 §5.1).
 //
 // Trae `buildLessonContext` (de `curriculum-context.ts`) más `buildForest` y
 // `lessonContextInputs` (de `curriculum-file.ts`). Las tres son el mismo trabajo
@@ -21,5 +20,5 @@
 //
 // Regla de código: identificadores en inglés, comentarios en español.
 
-export * from "../../../../src/lib/curriculum-context.ts";
-export * from "../../../../src/lib/curriculum-file.ts";
+export * from "../../../../packages/shared/src/curriculum-context.ts";
+export * from "../../../../packages/shared/src/curriculum-file.ts";
