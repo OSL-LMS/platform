@@ -484,7 +484,7 @@ describe("evidencia por lección", () => {
   // -------------------------------------------------------------------------
   // Las ramas de error de §4.2 que llegan hasta el cable
   // -------------------------------------------------------------------------
-  it("§5.1 (sin fila propia en §9): 404 para un slug inexistente, 404 para una etapa, 409 para una lección sin evidencia, 400 para un cuerpo malo", async () => {
+  it("filas 31-33 y 3 (integración): 404 para un slug inexistente, 404 para una etapa, 409 para una lección sin evidencia, 400 para un cuerpo malo", async () => {
     const student = await newStudent();
 
     const inexistente = await post(base, student, { lessonSlug: "no-existe", url: URL_A });
@@ -768,7 +768,7 @@ describe("evidencia: las cotas", () => {
   // -------------------------------------------------------------------------
   // Fila 46 — va DESPUÉS de la 45, y ese orden ES la afirmación
   // -------------------------------------------------------------------------
-  it("fila 46: con el cubo global de evidencia AGOTADO, el turno del tutor sigue llegando a sus 10/min", async () => {
+  it("fila 46 (la que NO detecta un skipIf ausente): con el cubo global de evidencia AGOTADO, el turno del tutor sigue llegando a sus 10/min", async () => {
     // El modo de fallo que vigila es el `skipIf` ausente, que acota el servicio
     // ENTERO — turno del tutor, `/v1/access` y webhook de Paddle incluidos.
     //
@@ -802,7 +802,7 @@ describe("evidencia: las cotas", () => {
   // -------------------------------------------------------------------------
   // Fila 46 (segunda mitad) — la que DE VERDAD detecta el `skipIf` ausente
   // -------------------------------------------------------------------------
-  it("fila 46: sin `skipIf`, el webhook de Paddle perdería sus 600/min — con él los conserva", async () => {
+  it("fila 46 (la que SÍ lo detecta): sin `skipIf`, el webhook de Paddle perdería sus 600/min — con él los conserva", async () => {
     // POR QUÉ LA MITAD DE ARRIBA NO BASTA, medido contra
     // `@nestjs/throttler@6`: el `generateKey` por defecto del guard es
     // `sha256(\`${ClassName}-${handlerName}-${throttlerName}-${tracker}\`)`

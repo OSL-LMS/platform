@@ -5,7 +5,16 @@
 // Node 22+ ejecuta TypeScript directamente. Sin framework: si algo se rompe,
 // el assert lo dice.
 //
-// Cubre las filas 1, 2, 3, 4 y 15 de PRD-006 §9. Solo tiene sentido DESPUÉS
+// Cubre las filas 1, 2, 3, 4 y 15 de PRD-006 §9, y la fila 65 de PRD-007 §9
+// SIN UNA LÍNEA DE CÓDIGO NUEVA: la "Fila 1" barre todo `packages/shared/src`
+// buscando imports de `apps/`, así que el `evidence.ts` nuevo entra solo; y la
+// "Fila 4" barre todo componente `"use client"` buscando imports de `@shared/*`
+// por valor, así que el código de evidencia de `chat-client.tsx` también. Los
+// dos escaneos son por prefijo y no por lista, que es exactamente por lo que un
+// PRD posterior puede apoyarse en ellos sin tocarlos. Queda escrito aquí porque
+// una cobertura reutilizada y no documentada se lee como cobertura ausente.
+//
+// Solo tiene sentido DESPUÉS
 // de la mudanza de PRD-006: si `apps/web`, `apps/api` o `packages/shared` no
 // existen todavía, falla explícitamente en vez de pasar verde examinando cero
 // archivos — el mismo modo de fallo que PRD-006 §8.1 dedica una página a

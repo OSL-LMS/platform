@@ -3,7 +3,7 @@
 // con:
 //   node scripts/check-evidence-bridge.ts
 //
-// Cubre las filas 61, 62, 63 y 64 de PRD-007 §9.
+// Cubre las filas 61, 62, 63, 64 y 64b de PRD-007 §9.
 //
 // Las tres primeras SÍ ejercitan el código real contra servidores HTTP locales
 // desechables, porque son exactamente los fallos que un test con dobles no
