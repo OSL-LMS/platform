@@ -64,6 +64,27 @@ async function readBroadcasts(curriculum: string): Promise<Broadcast[]> {
 type BroadcastReader = (curriculum: string) => Promise<Broadcast[]>;
 let reader: BroadcastReader | null = null;
 
+/**
+ * `unstable_cache` SERIALIZA A JSON lo que devuelve, así que un `Date` vuelve
+ * como cadena ISO. `curriculum.ts` no lo sufre —sus nodos no llevan fechas— y
+ * por eso "replica el patrón de `curriculum.ts`" no bastaba aquí.
+ *
+ * TUMBÓ LA HOME EN PRODUCCIÓN, y ningún test lo vio: fuera del servidor de Next
+ * el import dinámico de `next/cache` falla y `reader` cae a `readBroadcasts`,
+ * que devuelve `Date` de verdad. O sea que todo lo que corre bajo Node pelado
+ * —los checks, incluido el de degradación— ejercita la rama que NO serializa.
+ * La única forma de verlo era el proceso de Next, y ahí `startsAt.getTime()`
+ * dejó de ser una función dentro del `sort` de `schedule.ts`.
+ *
+ * Se revive al salir de la caché y no al entrar: el que serializa es el cache,
+ * y quien consume tiene derecho a recibir el tipo que el contrato promete.
+ */
+function reviveDates(rows: Broadcast[]): Broadcast[] {
+  return rows.map((row) =>
+    row.startsAt instanceof Date ? row : { ...row, startsAt: new Date(row.startsAt) }
+  );
+}
+
 async function cachedBroadcasts(curriculum: string): Promise<Broadcast[]> {
   if (!reader) {
     try {
@@ -73,7 +94,7 @@ async function cachedBroadcasts(curriculum: string): Promise<Broadcast[]> {
       reader = readBroadcasts;
     }
   }
-  return reader(curriculum);
+  return reviveDates(await reader(curriculum));
 }
 
 // Último valor conocido por currículo, en memoria del proceso, igual que en
