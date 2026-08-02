@@ -12,11 +12,12 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "curriculum:load": "node scripts/load-curriculum.ts",
-    "curriculum:check": "node scripts/check-curriculum-golden.ts && node scripts/check-curriculum.ts && node scripts/check-lessons.ts && node scripts/check-curriculum-identity.ts",
-    "curriculum:check:db": "node scripts/check-curriculum-load.ts",
+    "seasons:load": "node scripts/load-seasons.ts",
+    "curriculum:check": "node scripts/check-curriculum-golden.ts && node scripts/check-curriculum.ts && node scripts/check-seasons.ts && node scripts/check-lessons.ts && node scripts/check-curriculum-identity.ts",
+    "curriculum:check:db": "node scripts/check-curriculum-load.ts && node scripts/check-seasons-load.ts",
     "test": "pnpm --filter api test"
   },
-  "//scripts": "`build` y `start` DELEGAN a propósito (PRD-006 §7.3): Railway ejecuta el script `start` de la raíz para servicios enlazados a repositorio, y eso es lo que hace que esta mudanza no toque ninguna variable ni ningún Dockerfile. `curriculum:check` se partió en dos (PRD-006 §7.4): las cuatro comprobaciones de aquí no tocan Postgres y por eso CI puede correrlas; check-curriculum-load.ts escribe y borra filas, exige CURRICULUM_TEST_DATABASE_URL y vive en `curriculum:check:db`. Las seis comprobaciones que importan apps/web/src viajaron a apps/web y tienen sus entradas allí.",
+  "//scripts": "`build` y `start` DELEGAN a propósito (PRD-006 §7.3): Railway ejecuta el script `start` de la raíz para servicios enlazados a repositorio, y eso es lo que hace que esta mudanza no toque ninguna variable ni ningún Dockerfile. `curriculum:check` se partió en dos (PRD-006 §7.4): las CINCO comprobaciones de aquí no tocan Postgres y por eso CI puede correrlas; check-curriculum-load.ts y check-seasons-load.ts escriben y borran filas, exigen CURRICULUM_TEST_DATABASE_URL y viven en `curriculum:check:db`. `check-seasons.ts` entra en la cadena de `curriculum:check` y NO en un paso propio de checks.yml (PRD-008 §9): ese workflow ya invoca el agregado, así que el parser de temporadas nace cubierto en CI sin tocar el workflow — al revés que los de apps/web/scripts/, que sí necesitan paso propio porque no hay agregado que los invoque. Las seis comprobaciones que importan apps/web/src viajaron a apps/web y tienen sus entradas allí, con UNA excepción declarada: check-curriculum-golden.ts importa apps/web/src/lib/schedule.ts desde PRD-008 §9 fila 20, porque lo que compara contra el golden son los cuatro textos de la home compuestos por las funciones reales, y el golden vive aquí. Se puede porque schedule.ts es puro y no importa nada.",
   "dependencies": {
     "drizzle-orm": "catalog:",
     "next-auth": "catalog:",

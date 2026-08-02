@@ -6,7 +6,15 @@
 // y agruparlo con las unitarias haría que un fallo trivial impidiera correr la
 // comprobación más cargada del PRD.
 //
-// Cubre las filas 1, 2 y 22 de PRD-002 §9, y las filas 59 y 60 de PRD-007 §9.
+// Cubre las filas 1, 2 y 22 de PRD-002 §9, las filas 59 y 60 de PRD-007 §9, y
+// la fila 20 de PRD-008 §9.
+//
+// ÉSTE es el único script de la raíz que importa `apps/web/src`, y el resto de
+// los que lo hacen viven en `apps/web/scripts/` (ver el `//scripts` de
+// package.json). La excepción es deliberada y está en PRD-008 §9 fila 20: lo
+// que hay que comparar contra el golden son los textos de la home compuestos
+// por las funciones REALES de `schedule.ts`, y el golden vive aquí. Se puede
+// porque desde el paso D `schedule.ts` es puro: no importa nada.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -22,6 +30,14 @@ import {
   toEvidenceLessons,
   toLessonOptions,
 } from "../packages/shared/src/curriculum.ts";
+import { parseSeasonsFile } from "../packages/shared/src/broadcasts-file.ts";
+import {
+  agendaLine,
+  closingHeading,
+  formatSessionDate,
+  nextSession,
+  seasonAgenda,
+} from "../apps/web/src/lib/schedule.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -33,6 +49,17 @@ type Golden = {
     modules: string[] | null; stageData: string; hasDetails: boolean;
   }[];
   lessonOptions: { slug: string; title: string }[];
+  seasonHome: {
+    now: string;
+    pausedAt: string;
+    season: string;
+    agendaLine: { live: string; paused: string };
+    closingHeading: { live: string; paused: string };
+    rows: {
+      lessonSlug: string; title: string; outcome: string;
+      emitted: boolean; isNext: boolean; formattedDate: string; vodUrl: string | null;
+    }[];
+  };
 };
 
 const golden: Golden = JSON.parse(
@@ -184,8 +211,80 @@ for (const l of evidenceLessons) {
   assert.equal(sinEvidencia.slug, "leccion-sin-evidencia");
 }
 
+// ---------------------------------------------------------------------------
+// PRD-008 fila 20 — con UNA temporada, los cuatro textos de la home no cambian
+// ---------------------------------------------------------------------------
+//
+// NO ES UN TEST DE RENDER: este repositorio no tiene runner de componentes
+// React. Es la técnica de la "Fila 2" de arriba —componer la cadena observable
+// como lo hace `page.tsx`— llevada a su conclusión: en vez de copiar aquí las
+// plantillas, se llaman las funciones REALES que `page.tsx` llama, porque un
+// golden que copia plantillas compara su propia copia contra sí misma.
+//
+// El golden se capturó con el código anterior al paso D —`SEASON_SESSIONS` en
+// `schedule.ts` y las cuatro plantillas en línea en `page.tsx`— sobre las siete
+// emisiones de hoy, así que lo que afirma es "cero cambio visible".
+//
+// El `now` es fijo y sale del propio golden: `nextSession` depende del reloj, y
+// un golden que se moviera con el calendario no compararía nada.
+//
+// Lo que esta fila NO puede probar es que el JSX cablee estos valores al DOM.
+// Eso se verifica a mano — PRD-008 §10, punto 1 de la verificación.
+//
+// Está atado al archivo de temporadas REAL, y eso es a propósito: es la
+// afirmación "cero cambio visible" de esta migración, no una prueba genérica del
+// agrupado (ésa es la fila 18, con fixtures propios en
+// apps/web/scripts/check-schedule.ts). El día que se cargue una segunda
+// temporada, esta sección del golden se recaptura o se acota — y que salte es
+// justo lo que avisa de que la home cambió de forma.
+{
+  const want = golden.seasonHome;
+  const { broadcasts } = parseSeasonsFile(
+    JSON.parse(readFileSync(join(ROOT, "curriculum/contextia.seasons.json"), "utf8"))
+  );
+
+  const next = nextSession(broadcasts, new Date(want.now));
+  assert.ok(next, "el golden se capturó con una próxima clase; sin ella no compara nada");
+  assert.equal(
+    nextSession(broadcasts, new Date(want.pausedAt)),
+    null,
+    "la rama de pausa exige que no quede ninguna emisión futura"
+  );
+
+  assert.equal(agendaLine(next), want.agendaLine.live, "el renglón de agenda cambió");
+  assert.equal(agendaLine(null), want.agendaLine.paused, "el renglón de agenda en pausa cambió");
+  assert.equal(closingHeading(next), want.closingHeading.live, "el titular del cierre cambió");
+  assert.equal(
+    closingHeading(null),
+    want.closingHeading.paused,
+    "el titular del cierre en pausa cambió"
+  );
+
+  const groups = seasonAgenda(broadcasts, lessonsUnder(forest), new Date(want.now));
+  assert.equal(
+    groups.length,
+    1,
+    "con UNA temporada cargada el agrupado no debe verse. Si acabas de añadir una " +
+      "segunda temporada al archivo, la home cambia de forma a propósito (§4.4): " +
+      "recaptura `seasonHome` en scripts/fixtures/curriculum-golden.json"
+  );
+  assert.equal(groups[0].season, want.season);
+
+  const rows = groups[0].rows.map((row) => ({
+    lessonSlug: row.broadcast.lessonSlug,
+    title: row.title,
+    outcome: row.outcome,
+    emitted: row.emitted,
+    isNext: row.isNext,
+    formattedDate: formatSessionDate(row.broadcast),
+    vodUrl: row.broadcast.vodUrl,
+  }));
+  assert.deepEqual(rows, want.rows, "las filas de la tabla de temporada cambiaron");
+}
+
 console.log(
   `OK — cero cambio visible: ${Object.keys(golden.lessonContext).length - 1} bloques del tutor, ` +
     `${stages.length} etapas y ${options.length} opciones de selector idénticas al golden. ` +
-    `${evidenceLessons.length} lecciones con evidencia declarada.`
+    `${evidenceLessons.length} lecciones con evidencia declarada. ` +
+    `${golden.seasonHome.rows.length} emisiones y los cuatro textos de la home, sin cambio.`
 );

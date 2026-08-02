@@ -1,0 +1,48 @@
+{
+  "curriculum": "contextia",
+  "seasons": [
+    {
+      "season": "2026-t1",
+      "startsAtLocal": "20:00",
+      "utcOffset": "-05:00",
+      "broadcasts": [
+        {
+          "id": "0e1d1b25-5e27-44da-b2ce-d2e737adafaf",
+          "lessonSlug": "L1",
+          "date": "2026-07-14",
+          "vodUrl": "https://www.youtube.com/watch?v=T6g1Ynm8r3c"
+        },
+        {
+          "id": "8b95a7f2-bfb7-49bc-8eea-203018737255",
+          "lessonSlug": "L2",
+          "date": "2026-07-16"
+        },
+        {
+          "id": "046ce9e2-3f07-4b3c-a2f9-8cb2639c9780",
+          "lessonSlug": "L3",
+          "date": "2026-07-21"
+        },
+        {
+          "id": "51d2cd47-3a7d-4d8c-8cd8-e70142d59711",
+          "lessonSlug": "L4",
+          "date": "2026-07-23"
+        },
+        {
+          "id": "9e6528d4-ac93-42d8-9750-ffa7aa99ca5b",
+          "lessonSlug": "L5",
+          "date": "2026-07-28"
+        },
+        {
+          "id": "d2944361-f68f-47bb-9e43-a38d29147a2d",
+          "lessonSlug": "L6",
+          "date": "2026-07-30"
+        },
+        {
+          "id": "4c245dfa-2e63-4b14-969a-ef53d8fe7472",
+          "lessonSlug": "L7",
+          "date": "2026-08-04"
+        }
+      ]
+    }
+  ]
+}

@@ -53,7 +53,7 @@ const PROTECTED_PATHS = [
 
 // Scripts de `curriculum:check` que exigen base de datos y por tanto no
 // pueden vivir en la cadena que corre CI (§7.4).
-const DB_REQUIRING_SCRIPTS = ["check-curriculum-load.ts"];
+const DB_REQUIRING_SCRIPTS = ["check-curriculum-load.ts", "check-seasons-load.ts"];
 
 const SKIP_DIRS = new Set(["node_modules", ".git", ".next", "dist", ".turbo", "coverage"]);
 
@@ -499,6 +499,46 @@ function assertNone(label: string, violations: string[]): void {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Fila 26 (PRD-008) — el detector de URLs hostiles tiene UNA implementación
+// ---------------------------------------------------------------------------
+//
+// `url-evasion-fixtures.ts` lo dice en prosa: "si alguna vez aparece una segunda
+// implementación de esto en el repositorio, está mal". Esto lo vuelve ejecutable.
+//
+// POR QUÉ IMPORTA MÁS QUE UNA CONVENCIÓN. `curriculum-file.ts` está bajo
+// `CODEOWNERS` con la razón escrita —su detector es "la única puerta"— y un
+// fichero nuevo que lo copiase NO heredaría esa protección. PRD-008 §6.4 eligió
+// refactorizar y exportar en vez de duplicar precisamente por eso; lo que
+// faltaba era algo que lo mantuviera cierto mañana. Las catorce evasiones que
+// `check-curriculum.ts` y `check-seasons.ts` comparten protegen a la
+// implementación de debilitarse; esto protege de que aparezca una segunda.
+const DETECTOR_INTERNALS = ["URL_HOST_ALLOWLIST", "DANGEROUS_SCHEME", "stripUrlNoise", "URL_LIKE"];
+const DETECTOR_HOME = `${SHARED_SRC}/curriculum-file.ts`;
+
+function checkSingleUrlDetector(): string[] {
+  const problems: string[] = [];
+  for (const symbol of DETECTOR_INTERNALS) {
+    const defining = [API_SRC, WEB_SRC, SHARED_SRC]
+      .flatMap((root) => sourceFiles(root))
+      .filter((file) => {
+        const text = stripComments(readFileSync(join(ROOT, file), "utf8"));
+        // La DEFINICIÓN, no el uso: quien lo importa está reutilizando, que es
+        // justo lo que se quiere.
+        return new RegExp(`(const|let|function)\\s+${symbol}\\b`).test(text);
+      });
+    if (defining.length === 0) {
+      problems.push(`${symbol} no se define en ninguna parte — ¿se renombró sin actualizar esta lista?`);
+    } else if (defining.length > 1 || defining[0] !== DETECTOR_HOME) {
+      problems.push(
+        `${symbol} se define en ${defining.join(", ")} y sólo puede vivir en ${DETECTOR_HOME} ` +
+          "(PRD-008 §6.4: el control de host tiene una implementación, y es la que CODEOWNERS protege)"
+      );
+    }
+  }
+  return problems;
+}
+
 function main(): void {
   for (const root of [API_SRC, WEB_SRC, SHARED_SRC]) {
     assert.ok(
@@ -516,14 +556,15 @@ function main(): void {
     "Fila 4 — Client Component importa @shared por valor",
     checkNoClientValueImportsFromShared()
   );
+  assertNone("Fila 26 (PRD-008) — el detector de URLs es único", checkSingleUrlDetector());
   assertNone("Fila 15 — agregados de package.json", [
     ...checkPackageJsonScripts(ROOT_PACKAGE_JSON),
     ...checkPackageJsonScripts(WEB_PACKAGE_JSON),
   ]);
 
   console.log(
-    "OK — fronteras entre paquetes, CODEOWNERS, tipo Access, Client Components y agregados " +
-      "de package.json en pie."
+    "OK — fronteras entre paquetes, CODEOWNERS, tipo Access, Client Components, detector de " +
+      "URLs único y agregados de package.json en pie."
   );
 }
 

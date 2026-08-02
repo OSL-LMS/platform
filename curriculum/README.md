@@ -75,14 +75,42 @@ del tutor. Ver `CONTRIBUTING.md`.
 ## Añadir una lección
 
 1. Genera un `id`: `node -e 'console.log(crypto.randomUUID())'`.
-2. Añade el nodo bajo su módulo **y** su fecha en `src/lib/schedule.ts`, en el
-   **mismo PR**.
+2. Añade el nodo bajo su módulo **y**, si la lección se emite, su emisión en
+   `<slug>.seasons.json` — con su propio `id`, generado igual — en el **mismo
+   PR**. Desde PRD-008 las fechas son dato: ya no se editan en
+   `apps/web/src/lib/schedule.ts`, que se quedó sólo con el formato.
 3. Tras el merge: `pnpm curriculum:load` (revisa el diff), luego
-   `pnpm curriculum:load --write`. **Primero la carga, después el despliegue** —
-   al revés, la home queda con una sesión apuntando a un nodo inexistente.
+   `pnpm curriculum:load --write`, y `pnpm seasons:load --write` si tocaste las
+   emisiones. **Primero el currículo, después las emisiones** — el cargador de
+   temporadas resuelve cada `lessonSlug` contra `curriculum_nodes` y rechaza el
+   archivo entero si el nodo todavía no está.
+4. Ninguno de los dos pasos exige desplegar: la home los recoge en ≤ 10 min por
+   el TTL de caché.
 
 Corregir una errata en un nodo que ya existe (`title`, `stuck`, `outcome`) no
 necesita despliegue: se propaga en ≤ 10 min tras la carga.
+
+## Añadir la grabación de una clase
+
+Tras cada directo, la URL del VOD va en su emisión de `<slug>.seasons.json` y se
+carga con `pnpm seasons:load --write`. Sin desplegar.
+
+**Antes de pegarla, para y comprueba una cosa: que esa grabación puede ser
+pública.** No es burocracia y no es un paso de calendario — es el único momento
+en que alguien decide publicar un vídeo.
+
+- Una grabación de clase en directo lleva **caras, voces, nombres y chat de
+  estudiantes**.
+- **"Oculto" en YouTube no es privado**: significa *cualquiera con el enlace*. Y
+  el enlace acaba en la landing pública, en una página que no lleva `noindex` en
+  ninguna parte. El sistema es lo que hace público el vídeo.
+- Si no tienes claro que esa grabación esté autorizada para distribución
+  pública, **deja la emisión sin `vodUrl`**. La fila se pinta igual, sólo que
+  como "✓ emitida" y sin enlace. Añadirla después cuesta una carga.
+
+Lo que el validador **sí** comprueba —esquema `https:` y host dentro de la
+allowlist— es que el enlace no sea hostil. Que el vídeo pueda verse es un juicio
+que ninguna comprobación automática puede hacer por ti.
 
 ## Comprobar antes de abrir el PR
 

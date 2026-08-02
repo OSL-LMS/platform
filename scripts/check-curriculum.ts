@@ -18,6 +18,7 @@ import {
   type CurriculumNodeInput,
 } from "../packages/shared/src/curriculum-file.ts";
 import { buildLessonContext } from "../packages/shared/src/curriculum-context.ts";
+import { URL_EVASIONS, URL_EVASION_COUNT } from "./url-evasion-fixtures.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -285,27 +286,18 @@ const file = (nodes: CurriculumNodeInput[]) => ({ curriculum: "test", nodes });
   // porque el parser de URL del navegador normaliza antes de mirar. Si el
   // detector mira el valor crudo, no casan — y como es la ÚNICA puerta, ni el
   // control de esquema ni la allowlist llegan a correr.
-  for (const evasion of [
-    // (a) tab/LF/CR en cualquier posición: el parser los elimina.
-    "https:\t//evil.example.com/x",
-    "https:\n//evil.example.com/x",
-    "https:\r//evil.example.com/x",
-    "java\tscript:alert(1)",
-    "javascript:\talert(1)",
-    "javascript: alert(1)",
-    // (b) controles C0 iniciales: el parser los recorta, y `\s` de JavaScript
-    //     NO cubre U+0000-U+0008 ni U+000E-U+001F, así que `^\s*` no llegaba
-    //     nunca al esquema. En JSON `"\u0001https://…"` es perfectamente legal.
-    "\u0000https://evil.example.com/x",
-    "\u0001https://evil.example.com/x",
-    "\u001Fhttps://evil.example.com/x",
-    "\u0000javascript:alert(1)",
-    "\u000Bhttps://evil.example.com/x",
-    // (c) `\` donde el navegador acepta `/`: relativo a protocolo igual que `//`.
-    "/\\evil.example.com/x",
-    "\\\\evil.example.com/x",
-    "\\/evil.example.com/x",
-  ]) {
+  //
+  // LA TABLA YA NO VIVE AQUÍ (PRD-008 §9 fila 10). Desde que `checkUrlSafety`
+  // tiene un segundo llamante —el parser de temporadas— las catorce se corren
+  // sobre los DOS parsers desde una sola fuente: `scripts/url-evasion-fixtures.ts`.
+  // Copiarlas habría dejado que la segunda tabla se quedara corta sin ponerse
+  // roja, que es justo lo que la fila 10 existe para impedir.
+  assert.equal(
+    URL_EVASIONS.length,
+    URL_EVASION_COUNT,
+    "la tabla de evasión cambió de tamaño: son catorce y cada una cubre un bypass distinto"
+  );
+  for (const evasion of URL_EVASIONS) {
     rejects(() => parseCurriculumFile(withUrl(evasion)), /esquema|allowlist/);
   }
 

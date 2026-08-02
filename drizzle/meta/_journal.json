@@ -36,6 +36,13 @@
       "when": 1785514385416,
       "tag": "20260731161305_petite_master_chief",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785630881712,
+      "tag": "20260802003441_living_captain_stacy",
+      "breakpoints": true
     }
   ]
 }

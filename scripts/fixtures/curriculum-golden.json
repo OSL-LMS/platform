@@ -105,5 +105,84 @@
       "slug": "L7",
       "title": "La evidencia y el ritual"
     }
-  ]
+  ],
+  "seasonHome": {
+    "capturedFrom": "src/lib/schedule.ts (SEASON_SESSIONS) + src/app/page.tsx:41-43,519-521",
+    "now": "2026-07-20T00:00:00.000Z",
+    "pausedAt": "2030-01-01T00:00:00.000Z",
+    "season": "2026-t1",
+    "agendaLine": {
+      "live": "Próxima clase — martes 21 jul · 20:00 Colombia · en Twitch",
+      "paused": "Pausa entre temporadas — las grabaciones siguen abiertas, gratis"
+    },
+    "closingHeading": {
+      "live": "La próxima clase es este martes. Puedes estar dentro.",
+      "paused": "Las grabaciones te esperan. Puedes estar dentro."
+    },
+    "rows": [
+      {
+        "lessonSlug": "L1",
+        "title": "Hoy publicas en internet",
+        "outcome": "publicas tu web con tu nombre",
+        "emitted": true,
+        "isNext": false,
+        "formattedDate": "martes 14 jul",
+        "vodUrl": "https://www.youtube.com/watch?v=T6g1Ynm8r3c"
+      },
+      {
+        "lessonSlug": "L2",
+        "title": "Leer código, antes de escribirlo",
+        "outcome": "explicas tu primer código y lo cambias",
+        "emitted": true,
+        "isNext": false,
+        "formattedDate": "jueves 16 jul",
+        "vodUrl": null
+      },
+      {
+        "lessonSlug": "L3",
+        "title": "Que se vea como tú quieres",
+        "outcome": "tu página, con tu diseño",
+        "emitted": false,
+        "isNext": true,
+        "formattedDate": "martes 21 jul",
+        "vodUrl": null
+      },
+      {
+        "lessonSlug": "L4",
+        "title": "La terminal sin miedo",
+        "outcome": "te mueves por tu máquina como developer",
+        "emitted": false,
+        "isNext": false,
+        "formattedDate": "jueves 23 jul",
+        "vodUrl": null
+      },
+      {
+        "lessonSlug": "L5",
+        "title": "Git: tu trabajo, a salvo y con historia",
+        "outcome": "tu repositorio con historia de verdad",
+        "emitted": false,
+        "isNext": false,
+        "formattedDate": "martes 28 jul",
+        "vodUrl": null
+      },
+      {
+        "lessonSlug": "L6",
+        "title": "Tu primer código ajeno que funciona",
+        "outcome": "integras y corriges código que no escribiste",
+        "emitted": false,
+        "isNext": false,
+        "formattedDate": "jueves 30 jul",
+        "vodUrl": null
+      },
+      {
+        "lessonSlug": "L7",
+        "title": "La evidencia y el ritual",
+        "outcome": "tu primera pieza de portafolio, defendida",
+        "emitted": false,
+        "isNext": false,
+        "formattedDate": "martes 4 ago",
+        "vodUrl": null
+      }
+    ]
+  }
 }

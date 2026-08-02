@@ -239,6 +239,74 @@ export const lessonEvidence = pgTable(
   ]
 );
 
+// Las emisiones en directo (PRD-008). La tabla es una PROYECCIÓN de
+// `curriculum/<slug>.seasons.json`, igual que `curriculum_nodes` lo es del
+// archivo de currículo: el único escritor en el entorno desplegado es
+// `scripts/load-seasons.ts`.
+//
+// `id` lo aporta el archivo y ES la identidad de la emisión: sobrevive a
+// recargas y a correcciones de fecha. La temporada es una ETIQUETA, no una
+// tabla (D2): nadie pide su nombre, y "cuál es la vigente" se deriva de las
+// fechas.
+export const broadcasts = pgTable(
+  "broadcasts",
+  {
+    id: uuid("id").primaryKey(),
+    // AVISO: no hay aislamiento entre currículos, igual que en
+    // `curriculum_nodes`. Sale de CURRICULUM_SLUG y NUNCA del request.
+    curriculum: text("curriculum").notNull(),
+    // Etiqueta de temporada ("2026-t1"). Va contra `SLUG_PATTERN` en el archivo:
+    // participa en la clave única y en el agrupado de la tabla de la home, así
+    // que no puede ser texto libre.
+    season: text("season").notNull(),
+    // SIN clave foránea a `curriculum_nodes`, a propósito (§6.3 / D3). NO lo
+    // "arregles": una clase emitida es un hecho histórico. Con clave, retirar
+    // una lección del temario o bien se llevaría en cascada la fecha y la
+    // grabación de una clase que SÍ ocurrió, o bien abortaría la transacción
+    // del cargador. Sin ella el nodo puede morir y la emisión sobrevive; la
+    // fila de la agenda degrada a título vacío. La integridad se comprueba EN
+    // LA ESCRITURA, donde además cubre el `kind`: el cargador resuelve
+    // `lessonSlug → nodo` y rechaza el archivo entero si alguno no existe o no
+    // es `kind: "lesson"`.
+    lessonNodeId: uuid("lesson_node_id").notNull(),
+    // `withTimezone` Y `mode: "date"`, las DOS (§6.2). `pg-types` registra el
+    // mismo parser para los dos OID y, para una cadena sin desfase, construye
+    // el `Date` con los componentes LOCALES del proceso: la misma fila daría
+    // tres instantes distintos bajo TZ=UTC, America/Bogota y Asia/Tokyo. La
+    // hora de Colombia no se guarda — es una propiedad del render.
+    startsAt: timestamp("starts_at", { withTimezone: true, mode: "date" }).notNull(),
+    vodUrl: text("vod_url"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (row) => [
+    // Nombre estable a propósito, como en `curriculum_nodes`: es la llave que
+    // nombran el cargador y sus mensajes.
+    //
+    // `starts_at` ENTRA EN LA CLAVE (§6.1). Sin él una lección solo podría
+    // emitirse una vez por temporada, lo que prohíbe una clase de recuperación
+    // o una cohorte partida que recibe L1 dos veces — casos ordinarios en una
+    // escuela con directos. Lo que la clave sigue cazando es el error real: la
+    // misma emisión duplicada por copia y pega.
+    unique("broadcasts_season_lesson_starts_key").on(
+      row.curriculum,
+      row.season,
+      row.lessonNodeId,
+      row.startsAt
+    ),
+    // El orden que la home consulta.
+    index("broadcasts_curriculum_starts_idx").on(row.curriculum, row.startsAt),
+    // Acota el ESQUEMA, no el host: `LIKE` distingue mayúsculas, así que cierra
+    // `javascript:` y `data:` en la base y es fail-closed. El HOST lo acota
+    // `checkUrlSafety` y SOLO él (§8) — `https://youtube.com@evil.example.com/`
+    // pasa este CHECK y muere en la allowlist.
+    check(
+      "broadcasts_vod_url_https_check",
+      sql`${row.vodUrl} IS NULL OR ${row.vodUrl} LIKE 'https://%'`
+    ),
+  ]
+);
+
 // ---------------------------------------------------------------------------
 // Tipos inferidos (cómodos para los agentes de auth y persistencia)
 // ---------------------------------------------------------------------------
@@ -255,3 +323,5 @@ export type CurriculumNodeRow = typeof curriculumNodes.$inferSelect;
 export type NewCurriculumNodeRow = typeof curriculumNodes.$inferInsert;
 export type LessonEvidenceRow = typeof lessonEvidence.$inferSelect;
 export type NewLessonEvidenceRow = typeof lessonEvidence.$inferInsert;
+export type BroadcastRow = typeof broadcasts.$inferSelect;
+export type NewBroadcastRow = typeof broadcasts.$inferInsert;

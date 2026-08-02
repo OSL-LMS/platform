@@ -73,7 +73,7 @@ flowchart LR
 
 El currículo es un **árbol de profundidad libre en Postgres** (`curriculum_nodes`), y esa tabla es una **proyección** de `curriculum/<slug>.json`, que es la fuente de verdad autoral. La dirección importa: el archivo vive en git, así que todo cambio de contenido pasa por un PR y el temario sigue siendo reconstruible sin Postgres; la base de datos existe para dar una llave estable (`id`) de la que colgar progreso.
 
-El calendario de la temporada (`apps/web/src/lib/schedule.ts`) sigue siendo un `const` en el repositorio, y desde PRD-002 es **un artefacto que se despliega por separado** del currículo.
+El calendario **también es dato desde PRD-008**: las emisiones viven en `broadcasts`, proyectadas desde `curriculum/<slug>.seasons.json`. `apps/web/src/lib/schedule.ts` se quedó con las funciones puras —orden, pausa y formato— y ya no lleva fechas dentro. Programar una temporada dejó de exigir un despliegue.
 
 ### Key Entities
 
@@ -95,7 +95,19 @@ Restricciones: `curriculum_nodes_curriculum_slug_key UNIQUE (curriculum, slug) *
 
 Vocabulario del `payload` que la aplicación exige: `stage` → `built`, `aiRole`, `hours` (number), `milestone`, `status`, `statusLabel`, `hasDetail` (boolean), `scope` (opcional); `module` → `audience` (opcional); `lesson` → `outcome` y `stuck` (obligatorias). Las cuatro superficies que llegan al bloque de system son `stuck`, `outcome`, `audience` y `title`.
 
-`SEASON_SESSIONS` (fecha por `lessonSlug`, `vodUrl` opcional) sigue en `apps/web/src/lib/schedule.ts`.
+#### `broadcasts`
+
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | pk, **lo aporta el archivo** — identidad de la emisión |
+| curriculum | text | de `CURRICULUM_SLUG`, nunca del request |
+| season | text | etiqueta bajo `SLUG_PATTERN`, no una entidad |
+| lesson_node_id | uuid | el `id` del nodo `lesson`. **Sin clave foránea** |
+| starts_at | timestamptz | `{ withTimezone: true, mode: "date" }` |
+| vod_url | text | `CHECK (… LIKE 'https://%')` |
+| created_at / updated_at | timestamp | `defaultNow()` |
+
+`unique(curriculum, season, lesson_node_id, starts_at)` — la fecha entra a propósito: sin ella una lección sólo podría emitirse una vez por temporada, y eso prohibiría una clase de recuperación. Índice `(curriculum, starts_at)`, que es el único orden que la home consulta.
 
 ### Main Capabilities
 
@@ -105,7 +117,10 @@ Vocabulario del `payload` que la aplicación exige: `stage` → `built`, `aiRole
 | Bloque de contexto para el tutor (puro) | `buildLessonContext()` — `packages/shared/src/curriculum-context.ts` | PRD-002 |
 | Parseo, contrato de contenido y ensamblado (puro) | `parseCurriculumFile()`, `buildForest()`, `toStageViews()` — `packages/shared/src/curriculum-file.ts` | PRD-002 |
 | Carga del archivo a la base | `pnpm curriculum:load [--write] [--allow-deletes] [--allow-identity-change <slug>…]` — `scripts/load-curriculum.ts` | PRD-002 |
-| Próxima clase, formato de fecha y temario degradable | `nextSession()`, `formatSessionDate()`, `isPast()`, `seasonAgenda()` — `apps/web/src/lib/schedule.ts` | PRD-002 |
+| Próxima clase, formato, agrupado y temario degradable | `nextSession()`, `formatSessionDate()`, `formatSessionTime()`, `isPast()`, `seasonAgenda()`, `agendaLine()`, `closingHeading()` — `apps/web/src/lib/schedule.ts` | PRD-002, PRD-008 |
+| Lectura de emisiones (una consulta + join a la izquierda) | `getBroadcasts()` — `packages/shared/src/broadcasts.ts` | PRD-008 |
+| Parseo y contrato del archivo de temporadas (puro) | `parseSeasonsFile()` — `packages/shared/src/broadcasts-file.ts` | PRD-008 |
+| Carga del archivo a la base | `pnpm seasons:load [--write] [--allow-deletes]` — `scripts/load-seasons.ts` | PRD-008 |
 | Mapa del programa en la home | `toStageViews()` sobre el bosque — `apps/web/src/app/page.tsx` | PRD-002 |
 | Vocabulario de evidencia de una lección | `evidenceKind` (enum `["url"]`) y `evidencePrompt` en `PAYLOAD_VOCABULARY.lesson` — `packages/shared/src/curriculum-file.ts` | PRD-007 |
 | Opciones de lección **con** su evidencia | `toEvidenceLessons()` — `packages/shared/src/curriculum.ts`, consumida solo por `/chat` | PRD-007 |
@@ -126,9 +141,12 @@ Vocabulario del `payload` que la aplicación exige: `stage` → `built`, `aiRole
 - **`enum` en `PayloadRule` solo se comprueba cuando el tipo es `string`.** Si no, `{type: "number", enum: ["url"]}` sería representable e inerte: una regla que parece proteger y no protege.
 - **`PAYLOAD_VOCABULARY` está indexado por `kind`**, así que un `evidenceKind` colgado de un `stage` o un `module` **nunca pasa por el control de enum**. Lo cierra el consumidor: `resolveLesson` de `apps/api` casa solo nodos `kind === "lesson"`.
 - `stuck` describe el **atasco** y los límites de lo que se enseña, nunca la solución del reto sembrado. La regla vive en `curriculum/README.md`, donde la lee quien edita.
-- **Ninguna fecha escrita a mano en el JSX**: todo "próxima clase" sale de `schedule.ts`. Terminada la temporada, `nextSession()` devuelve `null` y la home entra sola en estado de pausa.
+- **Ninguna fecha escrita a mano en el JSX**: todo "próxima clase" sale de `schedule.ts`. Terminada la temporada, `nextSession()` devuelve `null` y la home entra sola en estado de pausa — en los **dos** sitios, con textos distintos.
+- **Ni la hora**: `formatSessionTime()` la deriva del instante. Estaba escrita a mano en tres sitios y coincidía por casualidad, porque la única temporada cargada empieza a las 20:00; `startsAtLocal` es dato **por temporada** justo para que otra pueda no serlo.
+- **Una clase emitida es un hecho histórico.** `lesson_node_id` no lleva clave foránea y retirar una emisión del archivo exige `--allow-deletes`: las dos puertas por las que se podría borrar están cerradas. Retirar la lección del temario deja la emisión viva y su fila degrada a título vacío.
+- **La lectura de emisiones NO relanza.** Es la diferencia deliberada con `curriculum.ts`: si las tres capas fallan, registra y devuelve `[]`, la sección de temporada se omite y el resto de la home se pinta. Replicar el currículo al pie de la letra haría que un hipo del calendario tumbase la landing entera.
 - Las clases son a las 20:00 hora de Colombia (UTC-5, sin DST) y duran 2 h; una sesión deja de ser "la próxima" cuando **termina**. El formato de fecha es manual y determinista.
-- **Añadir una lección son dos mitades que se despliegan por separado**: el nodo en `curriculum/<slug>.json` (efectivo tras `curriculum:load --write`) y su fecha en `SEASON_SESSIONS` (efectiva al desplegar el código). Van en el mismo PR; **primero la carga, después el despliegue**. Al revés, una sesión apunta a un nodo inexistente — `seasonAgenda()` degrada esa fila en vez de tumbar la home. Corregir contenido de una lección ya existente no necesita despliegue: se propaga en ≤ 10 min por el TTL.
+- **Añadir una lección son dos cargas, y el orden importa**: el nodo en `curriculum/<slug>.json` y su emisión en `<slug>.seasons.json`, en el mismo PR. **Primero el currículo, después las temporadas** — el cargador de emisiones resuelve cada `lessonSlug` contra `curriculum_nodes` y rechaza el archivo entero si el nodo no está. Ninguna de las dos exige desplegar: se propagan en ≤ 10 min por el TTL.
 
 ### Open Debt
 
@@ -144,8 +162,9 @@ Vocabulario del `payload` que la aplicación exige: `stage` → `built`, `aiRole
 - **La degradación ante fallo de Postgres la sostiene un mapa en memoria del proceso**, no `unstable_cache`: verificado que fuera del servidor de Next el especificador `next/cache` ni resuelve y que la API exige un `incrementalCache` ausente, así que no se da por bueno que sirva el valor stale al fallar la revalidación. `lastKnown` en `packages/shared/src/curriculum.ts` es **por proceso**: con varias réplicas cada una degrada por su cuenta.
 - **Los módulos de currículo importan con rutas relativas y extensión** (`./schema.ts`), no con el alias `@/lib/…`, contra la convención del resto de `apps/web/src/lib/`. Es deliberado: tienen que ser importables desde `scripts/` bajo Node pelado, que no conoce los `paths` de `tsconfig.json`.
 - No hay panel de administración ni CRUD, y es una decisión, no una carencia temporal: es lo que mantiene `stuck` en git.
-- `SEASON_SESSIONS` cubre una sola temporada y se edita a mano al terminar; los `vodUrl` se rellenan manualmente tras cada directo (hoy solo L1 lo tiene).
-- `schedule.ts` conserva sus literales `L1`–`L7` hasta CON-7, bajo excepción nombrada en `scripts/check-curriculum.ts`.
+- Los `vodUrl` se siguen rellenando a mano tras cada directo (hoy sólo L1 lo tiene). **Añadir uno es una decisión de publicación**, no de calendario: una grabación lleva caras, voces y chat de estudiantes, y "oculto" en YouTube significa cualquiera con el enlace. La puerta está escrita en `curriculum/README.md`.
+- **El copy estático de la sección de temporada sigue afirmando "martes y jueves, 20:00 Colombia"**, y ni los días ni la hora son derivables de una sola emisión. Con la temporada actual es cierto; una futura con otro horario lo haría falso. Es la misma clase de deuda que PRD-008 §4.4 cerró para el número de clases, y quedó fuera porque el PRD nombra ese texto literalmente.
+- **El detector de URLs hostiles tiene una sola implementación, y ahora se comprueba.** PRD-008 lo exportó desacoplándolo del nodo de currículo en vez de duplicarlo: una copia habría vivido fuera de `CODEOWNERS`, que es lo que protege al original. Las catorce evasiones son una tabla compartida y `check-boundaries.ts` falla si el detector aparece definido en un segundo módulo.
 - E1-M2 a M5 y los cinco módulos de E2 están declarados y vacíos: el modelo lo tolera a propósito.
 - **Los `evidencePrompt` no llevan URL de ejemplo, y no es estilo.** Pasan por `checkUrlSafety` como todo valor del payload, y `URL_HOST_ALLOWLIST` no incluye `*.github.io`: un `https://tuusuario.github.io` de muestra muere en el validador. Quien "mejore" un prompt añadiendo uno verá `curriculum:check` en rojo, y **el arreglo no es ensanchar la allowlist** — esa lista protege la landing pública de enlaces salientes bajo la marca de la escuela.
 - **De las siete lecciones de E1, solo tres producen un artefacto propio.** L1 (web publicada), L5 (repositorio) y L7 (pieza de portafolio). L2, L3, L4 y L6 declaran evidencia apuntando a la **misma** dirección que L1, en distintos estados de avance: es coherente con un módulo que construye un artefacto incrementalmente, pero significa que su `verified` es la misma comprobación repetida. Sirve como señal de abandono —quién sigue ahí en la lección 4—, no como evidencia de piezas distintas. Quien lea el agregado por lección tiene que saberlo o contará siete señales donde hay tres.
@@ -190,5 +209,6 @@ De ahí que el manifiesto de la raíz declare `drizzle-orm`, `pg` y `next-auth` 
 
 | Date | PRD | Summary |
 |---|---|---|
+| 2026-08-01 | PRD-008 | Las emisiones pasan a ser dato: tabla `broadcasts`, archivo `<slug>.seasons.json` y su cargador. Programar una temporada deja de exigir un despliegue y caben varias a la vez. El detector de URLs hostiles se exporta —desacoplado, no duplicado— para que `vodUrl` use la misma implementación que el currículo. |
 | 2026-07-31 | PRD-007 | El currículo pasa a declarar **qué evidencia pide cada lección** (`evidenceKind`, `evidencePrompt`, las dos opcionales), y aquí vive el esquema de `lesson_evidence`. Un curso adoptante cuyas lecciones no las declaren funciona sin tocar `src/`. `toLessonOptions` **no** se ensanchó: la evidencia viaja por una función nueva que solo consume `/chat`. |
 | 2026-07-31 | — | **El documento vivo se parte en tres**, uno por sibling, al pasar `SIBLINGS.md` de una fila a tres. El anterior vivía en `platform/docs/SYSTEM_ARTIFACT.md` y sigue disponible en el historial de git: los `system_artifact_diff` de PRD-002 a PRD-006 lo citan por ruta **y commit**, así que resuelven ahí y no en disco. Los dominios que cruzaban paquetes quedaron partidos, con la mitad de cada uno referenciando a la otra por nombre. |

@@ -407,7 +407,7 @@ function checkPayload(
   // renderizarían igual. Mirar solo el primer nivel dejaba esa superficie
   // abierta por construcción.
   walkStrings(payload, "payload", (field, value) =>
-    checkUrlSafety(rawNode, field, value)
+    checkUrlSafety(label(rawNode), field, value, fail)
   );
 }
 
@@ -446,13 +446,37 @@ function checkModelBoundValue(
       `${label(rawNode)}: "${field}" contiene el patrón imperativo "${imperative[0]}" y ese valor viaja al bloque de system`
     );
   }
-  checkUrlSafety(rawNode, field, value);
+  checkUrlSafety(label(rawNode), field, value, fail);
 }
 
-function checkUrlSafety(
-  rawNode: Record<string, unknown>,
+/**
+ * LA ÚNICA PUERTA, y desde PRD-008 §6.4 la única IMPLEMENTACIÓN.
+ *
+ * Nació privada y atada a un nodo de currículo (`rawNode`, `label(rawNode)`,
+ * `CurriculumFileError`). El archivo de temporadas no tiene nodos y sí tiene un
+ * `vodUrl` que acaba en un `href` de la landing pública, o sea exactamente la
+ * amenaza que esto acota. El camino por defecto —un detector nuevo en
+ * `broadcasts-file.ts`— duplicaría un control con CATORCE bypasses documentados
+ * en un fichero que `CODEOWNERS` no protege, mientras el original lo está
+ * precisamente por serlo. Así que se desacopla en vez de copiarse: el llamante
+ * aporta su `label` y su `fail`, y el cuerpo —las tres piezas que
+ * `packages/shared/CLAUDE.md` manda pensar juntas— no se toca ni se reescribe.
+ *
+ * Si alguna vez aparece una segunda implementación de esto en el repositorio,
+ * está mal: la fila 10 de PRD-008 §9 corre la tabla de evasión sobre los DOS
+ * parsers desde una sola fuente justamente para que una copia no derive en
+ * silencio.
+ *
+ * @param label  Cómo nombrar al portador del valor en el mensaje de error.
+ * @param field  Ruta del campo dentro de ese portador (`payload.cta.href`).
+ * @param fail   Lanzador del llamante. Tiene que lanzar SIEMPRE (`never`): si
+ *               retorna, el control degrada a inerte sin ponerse rojo.
+ */
+export function checkUrlSafety(
+  label: string,
   field: string,
-  value: string
+  value: string,
+  fail: (message: string) => never
 ): void {
   // Se normaliza ANTES de decidir: si se mira el valor crudo, un tabulador
   // dentro del esquema salta esta puerta entera — y esta puerta es la única,
@@ -472,17 +496,15 @@ function checkUrlSafety(
   try {
     url = new URL(candidate);
   } catch {
-    fail(`${label(rawNode)}: "${field}" parece una URL y no se puede parsear`);
+    fail(`${label}: "${field}" parece una URL y no se puede parsear`);
   }
 
   if (url.protocol !== "https:") {
-    fail(
-      `${label(rawNode)}: "${field}" usa el esquema "${url.protocol}" y solo se admite https:`
-    );
+    fail(`${label}: "${field}" usa el esquema "${url.protocol}" y solo se admite https:`);
   }
   if (!URL_HOST_ALLOWLIST.includes(url.hostname)) {
     fail(
-      `${label(rawNode)}: "${field}" apunta a "${url.hostname}", que no está en la allowlist de hosts`
+      `${label}: "${field}" apunta a "${url.hostname}", que no está en la allowlist de hosts`
     );
   }
 }

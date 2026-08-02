@@ -3,9 +3,17 @@ import Link from "next/link";
 import LegalFooter from "./legal-footer";
 import TrackingPixel from "./tracking-pixel";
 import VodEmbed from "./vod-embed";
+import { getBroadcasts } from "@shared/broadcasts";
 import { curriculumSlug, getCurriculumForest, getLessons } from "@shared/curriculum";
 import { toStageViews } from "@shared/curriculum-file";
-import { formatSessionDate, nextSession, seasonAgenda } from "@/lib/schedule";
+import {
+  agendaLine,
+  closingHeading,
+  formatSessionDate,
+  formatSessionTime,
+  nextSession,
+  seasonAgenda,
+} from "@/lib/schedule";
 
 // Landing pública (raíz). Implementa `60 Negocio/Nueva home de academia.md`:
 // la home como escuela en marcha (concepto "el aula en vivo"), con el programa
@@ -14,9 +22,14 @@ import { formatSessionDate, nextSession, seasonAgenda } from "@/lib/schedule";
 // la próxima lección del temario y el botón de matrícula.
 //
 // Fondos por bandas (decisión del 24 jul): papel ↔ surface alternos en
-// estricto; la única franja en tinta es S8, el manifiesto.
+// estricto; la única franja en tinta es S8, el manifiesto. Desde PRD-008 §4.4
+// esa alternancia tiene un caso más: S5 puede no pintarse (curso sin ninguna
+// emisión), y entonces S6 y S7 alternan al revés — ver `hasSeason` más abajo.
 //
-// Regla: ninguna fecha escrita a mano — todas salen de src/lib/schedule.ts.
+// Regla: ninguna fecha escrita a mano — todas salen de src/lib/schedule.ts, que
+// desde PRD-008 las recibe de la tabla `broadcasts` en vez de llevarlas dentro.
+// Los cuatro textos que dependen de la próxima clase también salen de allí, y
+// por la misma razón: el golden de §9 fila 20 los compara y no renderiza React.
 //
 // Regla de código: identificadores en inglés; texto de UI en español.
 
@@ -35,12 +48,22 @@ export default async function HomePage() {
 
   const curriculum = curriculumSlug();
   const stages = toStageViews(await getCurriculumForest(curriculum));
-  const season = seasonAgenda(await getLessons(curriculum));
 
-  const next = nextSession();
-  const agenda = next
-    ? `Próxima clase — ${formatSessionDate(next)} · 20:00 Colombia · en Twitch`
-    : "Pausa entre temporadas — las grabaciones siguen abiertas, gratis";
+  // `getBroadcasts` NUNCA lanza: sin lectura y sin caché devuelve `[]` y deja
+  // una línea en el log (PRD-008 §7.3). Aquí eso significa la home sin sección
+  // de temporada, no la home caída.
+  const broadcasts = await getBroadcasts(curriculum);
+  const season = seasonAgenda(broadcasts, await getLessons(curriculum));
+  const next = nextSession(broadcasts);
+  const agenda = agendaLine(next);
+
+  // Un curso adoptante sin ninguna clase en directo (goal 6). Con la sección
+  // fuera, la banda de S6 y S7 se deriva de aquí para que la alternancia
+  // "en estricto" sobreviva; el barrido termina en S8, porque la franja de
+  // tinta está fuera de la alternancia y reinicia la serie.
+  const hasSeason = season.length > 0;
+  const bandTutor = hasSeason ? "band-surface" : undefined; // S6
+  const bandTeacher = hasSeason ? undefined : "band-surface"; // S7
 
   return (
     <>
@@ -54,7 +77,9 @@ export default async function HomePage() {
           </Link>
           <nav className="home-header__nav">
             <a href="#programa">El programa</a>
-            <a href="#temporada">Clases en vivo</a>
+            {/* El ancla se va con su sección: un enlace a `#temporada` cuando
+                no hay ninguna emisión es un enlace muerto (PRD-008 §4.4). */}
+            {hasSeason && <a href="#temporada">Clases en vivo</a>}
             <a href="#tutor">El tutor</a>
             <Link href="/precios">Precios</Link>
             <Link href="/signin">Entrar</Link>
@@ -250,63 +275,87 @@ toggle.addEventListener("click", () => {
           </div>
         </section>
 
-        {/* S5 · dónde empiezas: la temporada en emisión */}
-        <section id="temporada">
-          <div className="wrap">
-            <p className="eyebrow">Ahora en emisión</p>
-            <h2>Ahora mismo: tu primera semana como developer.</h2>
-            <p className="narrow">
-              Siete clases de 2 horas — martes y jueves, 20:00 Colombia, en
-              Twitch — que terminan con tu página publicada, tu repositorio con
-              historia y tu primera pieza de portafolio. Gratis, en vivo o en
-              diferido, para siempre.
-            </p>
-            <table className="season">
-              <tbody>
-                {/* `title` y `outcome` vienen vacíos si la lección todavía no
-                    está cargada: el calendario viaja con el código y el temario
-                    se carga aparte. La fila degrada, la página no se cae. */}
-                {season.map(({ session, title, outcome, emitted, isNext }) => {
-                  return (
-                    <tr key={session.lessonSlug} className={isNext ? "season__next" : undefined}>
-                      <td className="season__id">{session.lessonSlug}</td>
-                      <td className="season__title">{title}</td>
-                      <td className="season__outcome">{outcome}</td>
-                      <td className="season__status">
-                        {emitted ? (
-                          session.vodUrl ? (
-                            <>
-                              ✓ emitida —{" "}
-                              <a href={session.vodUrl} target="_blank" rel="noreferrer">
-                                ver VOD
-                              </a>
-                            </>
+        {/* S5 · dónde empiezas: las clases en vivo. Se omite entera cuando no
+            hay ninguna emisión cargada (PRD-008 goal 6). */}
+        {hasSeason && (
+          <section id="temporada">
+            <div className="wrap">
+              <p className="eyebrow">Ahora en emisión</p>
+              {/* El copy describe el FORMATO y no el tamaño de una temporada
+                  (PRD-008 §4.4): decía "Siete clases" y "tu primera semana", y
+                  las dos cosas dejan de ser ciertas en cuanto la tabla lista
+                  más de una temporada. */}
+              <h2>Clases en vivo los martes y jueves. Todas quedan grabadas.</h2>
+              <p className="narrow">
+                Clases de 2 horas — martes y jueves, 20:00 Colombia, en Twitch —
+                que terminan con un cambio visible en tu página. Gratis, en vivo
+                o en diferido, para siempre.
+              </p>
+              <table className="season">
+                {/* Un `<tbody>` por temporada, ordenadas por su primera emisión.
+                    Con UNA sola el agrupado no se ve: el encabezado sólo se
+                    pinta a partir de dos, y el resto del DOM es el de siempre
+                    (§4.4, y la fila 20 de §9 lo afirma). */}
+                {season.map((group) => (
+                  <tbody key={group.season}>
+                    {season.length > 1 && (
+                      <tr>
+                        {/* `rowgroup` y no `colgroup`: el encabezado rotula las
+                            filas de SU `<tbody>`, no una columna. */}
+                        <th className="season__season" colSpan={4} scope="rowgroup">
+                          Temporada {group.season}
+                        </th>
+                      </tr>
+                    )}
+                    {/* `title` y `outcome` vienen vacíos si la lección ya no
+                        está en el temario: el join de `@shared/broadcasts` es a
+                        la izquierda a propósito y una clase emitida no se borra
+                        porque el temario cambie. La fila degrada, la página no
+                        se cae. */}
+                    {group.rows.map(({ broadcast, title, outcome, emitted, isNext }) => (
+                      // La clave es el `id` de la emisión, no el slug: la misma
+                      // lección emitida en dos temporadas daba claves duplicadas
+                      // en React (§4.3).
+                      <tr key={broadcast.id} className={isNext ? "season__next" : undefined}>
+                        <td className="season__id">{broadcast.lessonSlug}</td>
+                        <td className="season__title">{title}</td>
+                        <td className="season__outcome">{outcome}</td>
+                        <td className="season__status">
+                          {emitted ? (
+                            broadcast.vodUrl ? (
+                              <>
+                                ✓ emitida —{" "}
+                                <a href={broadcast.vodUrl} target="_blank" rel="noreferrer">
+                                  ver VOD
+                                </a>
+                              </>
+                            ) : (
+                              <>✓ emitida</>
+                            )
                           ) : (
-                            <>✓ emitida</>
-                          )
-                        ) : (
-                          <>
-                            {isNext && <span className="season__dot" aria-hidden="true" />}
-                            {formatSessionDate(session)}
-                            {isNext && " · 20:00"}
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <p className="home-season__note">
-              Cada lección acaba con un cambio visible en tu página — aquí
-              ninguna sesión termina a mitad de algo. En la primera semana ya
-              rompes código a propósito y lo arreglas: tu primer debugging real.
-            </p>
-          </div>
-        </section>
+                            <>
+                              {isNext && <span className="season__dot" aria-hidden="true" />}
+                              {formatSessionDate(broadcast)}
+                              {isNext && ` · ${formatSessionTime(broadcast)}`}
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
+              </table>
+              <p className="home-season__note">
+                Cada lección acaba con un cambio visible en tu página — aquí
+                ninguna sesión termina a mitad de algo. En la primera semana ya
+                rompes código a propósito y lo arreglas: tu primer debugging real.
+              </p>
+            </div>
+          </section>
+        )}
 
         {/* S6 · el tutor: el producto, por fin visible */}
-        <section id="tutor" className="band-surface">
+        <section id="tutor" className={bandTutor}>
           <div className="wrap">
             <p className="eyebrow">Lo único de pago</p>
             <div className="home-tutor__grid">
@@ -381,7 +430,7 @@ toggle.addEventListener("click", () => {
         </section>
 
         {/* S7 · el profesor y la cohorte */}
-        <section>
+        <section className={bandTeacher}>
           <div className="wrap">
             <p className="eyebrow">Quién enseña</p>
             <div className="home-teacher__grid">
@@ -515,11 +564,7 @@ toggle.addEventListener("click", () => {
             que el punto de la "i" del wordmark. */}
         <section className="home-closing">
           <div className="wrap">
-            <h2>
-              {next
-                ? `La próxima clase es este ${formatSessionDate(next).split(" ")[0]}. Puedes estar dentro.`
-                : "Las grabaciones te esperan. Puedes estar dentro."}
-            </h2>
+            <h2>{closingHeading(next)}</h2>
             <Link className="pricing__cta home-closing__cta" href="/registro?src=cierre">
               Empieza gratis — hoy publicas tu primera página <span aria-hidden="true">●</span>
             </Link>
